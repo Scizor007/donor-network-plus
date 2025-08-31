@@ -14,7 +14,215 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      blood_banks: {
+        Row: {
+          address: string
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          operating_hours: string | null
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          operating_hours?: string | null
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          operating_hours?: string | null
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      blood_inventory: {
+        Row: {
+          blood_bank_id: string
+          blood_group: string
+          expiry_date: string | null
+          id: string
+          last_updated: string
+          units_available: number | null
+        }
+        Insert: {
+          blood_bank_id: string
+          blood_group: string
+          expiry_date?: string | null
+          id?: string
+          last_updated?: string
+          units_available?: number | null
+        }
+        Update: {
+          blood_bank_id?: string
+          blood_group?: string
+          expiry_date?: string | null
+          id?: string
+          last_updated?: string
+          units_available?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blood_inventory_blood_bank_id_fkey"
+            columns: ["blood_bank_id"]
+            isOneToOne: false
+            referencedRelation: "blood_banks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blood_requests: {
+        Row: {
+          additional_notes: string | null
+          blood_group: string
+          contact_phone: string
+          created_at: string
+          hospital_address: string
+          hospital_name: string
+          id: string
+          needed_by: string | null
+          patient_name: string
+          status: string | null
+          units_needed: number | null
+          updated_at: string
+          urgency_level: string | null
+          user_id: string
+        }
+        Insert: {
+          additional_notes?: string | null
+          blood_group: string
+          contact_phone: string
+          created_at?: string
+          hospital_address: string
+          hospital_name: string
+          id?: string
+          needed_by?: string | null
+          patient_name: string
+          status?: string | null
+          units_needed?: number | null
+          updated_at?: string
+          urgency_level?: string | null
+          user_id: string
+        }
+        Update: {
+          additional_notes?: string | null
+          blood_group?: string
+          contact_phone?: string
+          created_at?: string
+          hospital_address?: string
+          hospital_name?: string
+          id?: string
+          needed_by?: string | null
+          patient_name?: string
+          status?: string | null
+          units_needed?: number | null
+          updated_at?: string
+          urgency_level?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean | null
+          message: string
+          title: string
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          title: string
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          title?: string
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          age: number | null
+          blood_group: string | null
+          created_at: string
+          email: string
+          full_name: string
+          gender: string | null
+          id: string
+          is_available: boolean | null
+          is_verified: boolean | null
+          last_donation_date: string | null
+          location: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age?: number | null
+          blood_group?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          gender?: string | null
+          id?: string
+          is_available?: boolean | null
+          is_verified?: boolean | null
+          last_donation_date?: string | null
+          location?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age?: number | null
+          blood_group?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          gender?: string | null
+          id?: string
+          is_available?: boolean | null
+          is_verified?: boolean | null
+          last_donation_date?: string | null
+          location?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
