@@ -35,89 +35,131 @@ interface EmergencyLocation {
 const mockDonors: Donor[] = [
   {
     id: '1',
-    name: 'John Smith',
+    name: 'Rajesh Kumar',
     bloodGroup: 'O+',
-    location: 'Downtown Medical Center',
-    distance: '0.5 km',
+    location: 'Connaught Place, Delhi',
+    distance: '0.8 km',
     lastDonation: '3 months ago',
     verified: true,
     available: true,
-    phone: '+1 (555) 123-4567',
-    coordinates: [40.7580, -73.9855]
+    phone: '+91 9876543210',
+    coordinates: [28.6315, 77.2167]
   },
   {
     id: '2',
-    name: 'Sarah Johnson',
+    name: 'Priya Sharma',
     bloodGroup: 'O+',
-    location: 'City Hospital',
-    distance: '1.2 km',
+    location: 'Bandra West, Mumbai',
+    distance: '1.5 km',
     lastDonation: '4 months ago',
     verified: true,
     available: true,
-    phone: '+1 (555) 234-5678',
-    coordinates: [40.7505, -73.9934]
+    phone: '+91 8765432109',
+    coordinates: [19.0596, 72.8295]
   },
   {
     id: '3',
-    name: 'Michael Brown',
+    name: 'Amit Patel',
     bloodGroup: 'A+',
-    location: 'Community Health Center',
-    distance: '2.1 km',
+    location: 'Koramangala, Bangalore',
+    distance: '2.3 km',
     lastDonation: '2 months ago',
     verified: false,
     available: true,
-    phone: '+1 (555) 345-6789',
-    coordinates: [40.7410, -73.9896]
+    phone: '+91 7654321098',
+    coordinates: [12.9279, 77.6271]
   },
   {
     id: '4',
-    name: 'Emily Davis',
+    name: 'Sneha Reddy',
     bloodGroup: 'O+',
-    location: 'General Hospital',
-    distance: '3.0 km',
+    location: 'T Nagar, Chennai',
+    distance: '3.2 km',
     lastDonation: '5 months ago',
     verified: true,
     available: false,
-    phone: '+1 (555) 456-7890',
-    coordinates: [40.7282, -73.9942]
+    phone: '+91 6543210987',
+    coordinates: [13.0418, 80.2341]
+  },
+  {
+    id: '5',
+    name: 'Vikash Singh',
+    bloodGroup: 'B+',
+    location: 'Gomti Nagar, Lucknow',
+    distance: '1.8 km',
+    lastDonation: '3 months ago',
+    verified: true,
+    available: true,
+    phone: '+91 9123456780',
+    coordinates: [26.8467, 80.9462]
+  },
+  {
+    id: '6',
+    name: 'Kavya Nair',
+    bloodGroup: 'AB+',
+    location: 'Marine Drive, Kochi',
+    distance: '2.7 km',
+    lastDonation: '6 months ago',
+    verified: true,
+    available: true,
+    phone: '+91 8234567891',
+    coordinates: [9.9312, 76.2673]
   }
 ];
 
 const mockEmergencyLocations: EmergencyLocation[] = [
   {
     id: '1',
-    name: 'City General Hospital',
+    name: 'All India Institute of Medical Sciences (AIIMS)',
     type: 'hospital',
-    address: '123 Main St, New York, NY',
-    phone: '+1 (555) 911-1234',
-    coordinates: [40.7505, -73.9934],
+    address: 'Ansari Nagar, New Delhi 110029',
+    phone: '+91 11 2659 8663',
+    coordinates: [28.5672, 77.2100],
     isOpen24h: true
   },
   {
     id: '2',
-    name: 'Central Blood Bank',
+    name: 'Indian Red Cross Society Blood Bank',
     type: 'blood_bank',
-    address: '456 Health Ave, New York, NY',
-    phone: '+1 (555) 922-5678',
-    coordinates: [40.7614, -73.9776],
+    address: 'Red Cross Bhawan, New Delhi 110001',
+    phone: '+91 11 2371 6441',
+    coordinates: [28.6139, 77.2090],
     isOpen24h: false
   },
   {
     id: '3',
-    name: 'Emergency Medical Center',
+    name: 'King Edward Memorial Hospital',
     type: 'hospital',
-    address: '789 Emergency Blvd, New York, NY',
-    phone: '+1 (555) 933-9999',
-    coordinates: [40.7390, -73.9903],
+    address: 'Acharya Donde Marg, Parel, Mumbai 400012',
+    phone: '+91 22 2417 7777',
+    coordinates: [19.0176, 72.8401],
     isOpen24h: true
   },
   {
     id: '4',
-    name: 'Community Blood Center',
+    name: 'Tata Memorial Blood Bank',
     type: 'blood_bank',
-    address: '321 Donor St, New York, NY',
-    phone: '+1 (555) 944-2468',
-    coordinates: [40.7342, -74.0016],
+    address: 'Dr E Borges Road, Parel, Mumbai 400012',
+    phone: '+91 22 2417 7000',
+    coordinates: [19.0144, 72.8397],
+    isOpen24h: true
+  },
+  {
+    id: '5',
+    name: 'Apollo Hospitals',
+    type: 'hospital',
+    address: '21 Greams Lane, Off Greams Road, Chennai 600006',
+    phone: '+91 44 2829 0200',
+    coordinates: [13.0569, 80.2503],
+    isOpen24h: true
+  },
+  {
+    id: '6',
+    name: 'Bangalore Medical Services Trust Blood Bank',
+    type: 'blood_bank',
+    address: 'Victoria Hospital Campus, Fort, Bangalore 560002',
+    phone: '+91 80 2670 1150',
+    coordinates: [12.9716, 77.5946],
     isOpen24h: false
   }
 ];
@@ -273,8 +315,8 @@ const FindDonor = () => {
               <Map 
                 donors={filteredDonors}
                 emergencyLocations={mockEmergencyLocations}
-                center={[40.7505, -73.9934]}
-                zoom={13}
+                center={[28.6139, 77.2090]}
+                zoom={6}
               />
               <div className="mt-4 flex items-center justify-center space-x-6 text-sm text-muted-foreground">
                 <div className="flex items-center space-x-2">
