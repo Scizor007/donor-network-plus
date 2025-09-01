@@ -5,8 +5,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, MapPin, Phone, Calendar, Shield, Heart } from 'lucide-react';
+import { Search, MapPin, Phone, Calendar, Shield, Heart, Map as MapIcon } from 'lucide-react';
 import Navigation from '@/components/Navigation';
+import Map from '@/components/Map';
 
 interface Donor {
   id: string;
@@ -18,6 +19,17 @@ interface Donor {
   verified: boolean;
   available: boolean;
   phone: string;
+  coordinates: [number, number];
+}
+
+interface EmergencyLocation {
+  id: string;
+  name: string;
+  type: 'hospital' | 'blood_bank';
+  address: string;
+  phone: string;
+  coordinates: [number, number];
+  isOpen24h: boolean;
 }
 
 const mockDonors: Donor[] = [
@@ -30,7 +42,8 @@ const mockDonors: Donor[] = [
     lastDonation: '3 months ago',
     verified: true,
     available: true,
-    phone: '+1 (555) 123-4567'
+    phone: '+1 (555) 123-4567',
+    coordinates: [40.7580, -73.9855]
   },
   {
     id: '2',
@@ -41,7 +54,8 @@ const mockDonors: Donor[] = [
     lastDonation: '4 months ago',
     verified: true,
     available: true,
-    phone: '+1 (555) 234-5678'
+    phone: '+1 (555) 234-5678',
+    coordinates: [40.7505, -73.9934]
   },
   {
     id: '3',
@@ -52,7 +66,8 @@ const mockDonors: Donor[] = [
     lastDonation: '2 months ago',
     verified: false,
     available: true,
-    phone: '+1 (555) 345-6789'
+    phone: '+1 (555) 345-6789',
+    coordinates: [40.7410, -73.9896]
   },
   {
     id: '4',
@@ -63,7 +78,47 @@ const mockDonors: Donor[] = [
     lastDonation: '5 months ago',
     verified: true,
     available: false,
-    phone: '+1 (555) 456-7890'
+    phone: '+1 (555) 456-7890',
+    coordinates: [40.7282, -73.9942]
+  }
+];
+
+const mockEmergencyLocations: EmergencyLocation[] = [
+  {
+    id: '1',
+    name: 'City General Hospital',
+    type: 'hospital',
+    address: '123 Main St, New York, NY',
+    phone: '+1 (555) 911-1234',
+    coordinates: [40.7505, -73.9934],
+    isOpen24h: true
+  },
+  {
+    id: '2',
+    name: 'Central Blood Bank',
+    type: 'blood_bank',
+    address: '456 Health Ave, New York, NY',
+    phone: '+1 (555) 922-5678',
+    coordinates: [40.7614, -73.9776],
+    isOpen24h: false
+  },
+  {
+    id: '3',
+    name: 'Emergency Medical Center',
+    type: 'hospital',
+    address: '789 Emergency Blvd, New York, NY',
+    phone: '+1 (555) 933-9999',
+    coordinates: [40.7390, -73.9903],
+    isOpen24h: true
+  },
+  {
+    id: '4',
+    name: 'Community Blood Center',
+    type: 'blood_bank',
+    address: '321 Donor St, New York, NY',
+    phone: '+1 (555) 944-2468',
+    coordinates: [40.7342, -74.0016],
+    isOpen24h: false
   }
 ];
 
@@ -76,6 +131,7 @@ const FindDonor = () => {
 
   const [filteredDonors, setFilteredDonors] = useState<Donor[]>(mockDonors);
   const [isSearching, setIsSearching] = useState(false);
+  const [showMap, setShowMap] = useState(true);
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -194,6 +250,45 @@ const FindDonor = () => {
             </p>
           </div>
         )}
+
+        {/* Map Section */}
+        <Card className="mb-8 shadow-lg">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center space-x-2">
+                <MapIcon className="w-5 h-5 text-primary" />
+                <span>Donor & Emergency Locations Map</span>
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMap(!showMap)}
+              >
+                {showMap ? 'Hide Map' : 'Show Map'}
+              </Button>
+            </div>
+          </CardHeader>
+          {showMap && (
+            <CardContent>
+              <Map 
+                donors={filteredDonors}
+                emergencyLocations={mockEmergencyLocations}
+                center={[40.7505, -73.9934]}
+                zoom={13}
+              />
+              <div className="mt-4 flex items-center justify-center space-x-6 text-sm text-muted-foreground">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-red-600 rounded-full"></div>
+                  <span>Blood Donors</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                  <span>Emergency Locations</span>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
 
         {/* Results */}
         <div className="space-y-4">
