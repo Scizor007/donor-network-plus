@@ -1,19 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
 // Fix for default markers in React Leaflet
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow,
-});
+const fixLeafletIcons = () => {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  });
+};
 
 interface Donor {
   id: string;
@@ -66,6 +63,10 @@ const Map: React.FC<MapProps> = ({
   center = [40.7128, -74.0060], // Default to NYC coordinates
   zoom = 12 
 }) => {
+  useEffect(() => {
+    fixLeafletIcons();
+  }, []);
+
   return (
     <div className="w-full h-96 rounded-lg overflow-hidden shadow-lg">
       <MapContainer
@@ -79,14 +80,13 @@ const Map: React.FC<MapProps> = ({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {/* Donor markers */}
         {donors.map((donor) => (
           <Marker
-            key={donor.id}
+            key={`donor-${donor.id}`}
             position={donor.coordinates}
             icon={donorIcon}
           >
-            <Popup className="custom-popup">
+            <Popup>
               <div className="p-2">
                 <h3 className="font-semibold text-sm">{donor.name}</h3>
                 <p className="text-xs text-gray-600 mb-2">{donor.location}</p>
@@ -109,14 +109,13 @@ const Map: React.FC<MapProps> = ({
           </Marker>
         ))}
         
-        {/* Emergency location markers */}
         {emergencyLocations.map((location) => (
           <Marker
-            key={location.id}
+            key={`emergency-${location.id}`}
             position={location.coordinates}
             icon={emergencyIcon}
           >
-            <Popup className="custom-popup">
+            <Popup>
               <div className="p-2">
                 <h3 className="font-semibold text-sm">{location.name}</h3>
                 <p className="text-xs text-gray-600 mb-1">
