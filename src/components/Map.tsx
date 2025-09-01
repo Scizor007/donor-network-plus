@@ -1,9 +1,8 @@
-import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
+import React, { useEffect, useRef } from 'react';
+import L, { Map as LeafletMap, LayerGroup } from 'leaflet';
 
-// Fix for default markers in React Leaflet
-const fixLeafletIcons = () => {
+// Ensure default marker icons work
+const ensureLeafletIcons = () => {
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -42,97 +41,114 @@ interface MapProps {
   zoom?: number;
 }
 
-// Custom icons for different marker types
-const donorIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNkYzI2MjYiLz4KPHN2ZyB4PSI2IiB5PSI2IiB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+CjxwYXRoIGQ9Ik0yMC44NCA0LjYxYTUuNSA1LjUgMCAwIDAtNy43OCAwTDEyIDUuNjdsLTEuMDYtMS4wNmE1LjUgNS41IDAgMCAwLTcuNzggNy43OGwxLjA2IDEuMDZMMTIgMjEuMjNsNy43OC03Ljc4IDEuMDYtMS4wNmE1LjUgNS41IDAgMCAwIDAtNy43OHoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo8L3N2Zz4K',
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32],
-});
-
-const emergencyIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNlZjQ0NDQiLz4KPHN2ZyB4PSI2IiB5PSI2IiB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+CjxwYXRoIGQ9Im0xMiAyIDMuMDkgNi4yNkwyMSA5bC00Ljk1IDQuOTVMMTggMjBsLTYtMy4yN0w2IDIwbDEuMDUtNi4wNUwzIDlsNS45MS0uNzRMMTIgMnoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo8L3N2Zz4K',
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32],
-});
-
-const Map: React.FC<MapProps> = ({ 
-  donors, 
-  emergencyLocations, 
-  center = [40.7128, -74.0060], // Default to NYC coordinates
-  zoom = 12 
+const Map: React.FC<MapProps> = ({
+  donors,
+  emergencyLocations,
+  center = [40.7128, -74.0060],
+  zoom = 12,
 }) => {
+  const mapRef = useRef<LeafletMap | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const markersLayerRef = useRef<LayerGroup | null>(null);
+
   useEffect(() => {
-    fixLeafletIcons();
+    ensureLeafletIcons();
+
+    if (containerRef.current && !mapRef.current) {
+      // Initialize map
+      mapRef.current = L.map(containerRef.current).setView(center, zoom);
+
+      // OSM tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(mapRef.current);
+
+      markersLayerRef.current = L.layerGroup().addTo(mapRef.current);
+    }
+
+    return () => {
+      // Cleanup on unmount
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markersLayerRef.current = null;
+      }
+    };
+    // We only want to run this once on mount/unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
-    <div className="w-full h-96 rounded-lg overflow-hidden shadow-lg">
-      <MapContainer
-        center={center}
-        zoom={zoom}
-        style={{ height: '100%', width: '100%' }}
-        className="z-0"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {donors.map((donor) => (
-          <Marker
-            key={`donor-${donor.id}`}
-            position={donor.coordinates}
-            icon={donorIcon}
-          >
-            <Popup>
-              <div className="p-2">
-                <h3 className="font-semibold text-sm">{donor.name}</h3>
-                <p className="text-xs text-gray-600 mb-2">{donor.location}</p>
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`px-2 py-1 rounded text-xs font-medium text-white ${
-                    donor.available ? 'bg-green-500' : 'bg-gray-500'
-                  }`}>
-                    {donor.bloodGroup}
-                  </span>
-                  <span className={`text-xs ${
-                    donor.available ? 'text-green-600' : 'text-gray-500'
-                  }`}>
-                    {donor.available ? 'Available' : 'Unavailable'}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-600">{donor.distance} away</p>
-                <p className="text-xs text-gray-600">Last donation: {donor.lastDonation}</p>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-        
-        {emergencyLocations.map((location) => (
-          <Marker
-            key={`emergency-${location.id}`}
-            position={location.coordinates}
-            icon={emergencyIcon}
-          >
-            <Popup>
-              <div className="p-2">
-                <h3 className="font-semibold text-sm">{location.name}</h3>
-                <p className="text-xs text-gray-600 mb-1">
-                  {location.type === 'hospital' ? '🏥 Hospital' : '🩸 Blood Bank'}
-                </p>
-                <p className="text-xs text-gray-600 mb-2">{location.address}</p>
-                <p className="text-xs text-gray-600 mb-1">📞 {location.phone}</p>
-                <p className={`text-xs ${location.isOpen24h ? 'text-green-600' : 'text-orange-600'}`}>
-                  {location.isOpen24h ? '24/7 Open' : 'Limited Hours'}
-                </p>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-    </div>
-  );
+  // Update center/zoom when props change
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.setView(center, zoom);
+    }
+  }, [center, zoom]);
+
+  // Render markers whenever data changes
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const layer = markersLayerRef.current ?? L.layerGroup().addTo(mapRef.current);
+    // Clear existing markers
+    layer.clearLayers();
+
+    // Donor markers
+    donors.forEach((donor) => {
+      const marker = L.marker(donor.coordinates, {
+        title: `${donor.name} (${donor.bloodGroup})`,
+      });
+      const html = `
+        <div style="min-width:180px">
+          <h3 style="margin:0;font-weight:600;font-size:0.9rem">${donor.name}</h3>
+          <p style="margin:4px 0;color:#555;font-size:0.75rem">${donor.location}</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0">
+            <span style="padding:2px 6px;border-radius:6px;background:${donor.available ? '#16a34a' : '#6b7280'};color:white;font-size:0.7rem">${donor.bloodGroup}</span>
+            <span style="font-size:0.7rem;color:${donor.available ? '#16a34a' : '#6b7280'}">${
+              donor.available ? 'Available' : 'Unavailable'
+            }</span>
+          </div>
+          <p style="margin:0;color:#555;font-size:0.75rem">${donor.distance} away</p>
+          <p style="margin:0;color:#555;font-size:0.75rem">Last donation: ${donor.lastDonation}</p>
+        </div>
+      `;
+      marker.bindPopup(html);
+      marker.addTo(layer);
+    });
+
+    // Emergency markers
+    emergencyLocations.forEach((loc) => {
+      const marker = L.marker(loc.coordinates, {
+        title: `${loc.name}`,
+        icon: L.divIcon({
+          className: 'emergency-icon',
+          html: `<div style="background:#ef4444;border-radius:50%;width:18px;height:18px;border:2px solid white;box-shadow:0 0 0 2px rgba(0,0,0,0.1)"></div>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        }),
+      });
+      const html = `
+        <div style="min-width:180px">
+          <h3 style="margin:0;font-weight:600;font-size:0.9rem">${loc.name}</h3>
+          <p style="margin:4px 0;color:#555;font-size:0.75rem">${
+            loc.type === 'hospital' ? '🏥 Hospital' : '🩸 Blood Bank'
+          }</p>
+          <p style="margin:0 0 6px 0;color:#555;font-size:0.75rem">${loc.address}</p>
+          <p style="margin:0 0 4px 0;color:#555;font-size:0.75rem">📞 ${loc.phone}</p>
+          <p style="margin:0;color:${loc.isOpen24h ? '#16a34a' : '#ea580c'};font-size:0.75rem">${
+            loc.isOpen24h ? '24/7 Open' : 'Limited Hours'
+          }</p>
+        </div>
+      `;
+      marker.bindPopup(html);
+      marker.addTo(layer);
+    });
+
+    markersLayerRef.current = layer;
+  }, [donors, emergencyLocations]);
+
+  return <div ref={containerRef} className="w-full h-96 rounded-lg overflow-hidden shadow-lg" />;
 };
 
 export default Map;
