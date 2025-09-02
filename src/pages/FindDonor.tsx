@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, MapPin, Phone, Calendar, Shield, Heart } from 'lucide-react';
+import { Search, MapPin, Phone, Calendar, Shield, Heart, Map as MapIcon } from 'lucide-react';
 import Navigation from '@/components/Navigation';
+import Map from '@/components/Map';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Donor {
   id: string;
@@ -18,54 +20,21 @@ interface Donor {
   verified: boolean;
   available: boolean;
   phone: string;
+  coordinates: [number, number];
 }
 
-const mockDonors: Donor[] = [
-  {
-    id: '1',
-    name: 'John Smith',
-    bloodGroup: 'O+',
-    location: 'Downtown Medical Center',
-    distance: '0.5 km',
-    lastDonation: '3 months ago',
-    verified: true,
-    available: true,
-    phone: '+1 (555) 123-4567'
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    bloodGroup: 'O+',
-    location: 'City Hospital',
-    distance: '1.2 km',
-    lastDonation: '4 months ago',
-    verified: true,
-    available: true,
-    phone: '+1 (555) 234-5678'
-  },
-  {
-    id: '3',
-    name: 'Michael Brown',
-    bloodGroup: 'A+',
-    location: 'Community Health Center',
-    distance: '2.1 km',
-    lastDonation: '2 months ago',
-    verified: false,
-    available: true,
-    phone: '+1 (555) 345-6789'
-  },
-  {
-    id: '4',
-    name: 'Emily Davis',
-    bloodGroup: 'O+',
-    location: 'General Hospital',
-    distance: '3.0 km',
-    lastDonation: '5 months ago',
-    verified: true,
-    available: false,
-    phone: '+1 (555) 456-7890'
-  }
-];
+interface EmergencyLocation {
+  id: string;
+  name: string;
+  type: 'hospital' | 'blood_bank';
+  address: string;
+  phone: string;
+  coordinates: [number, number];
+  isOpen24h: boolean;
+}
+
+
+const mockEmergencyLocations: EmergencyLocation[] = [];
 
 const FindDonor = () => {
   const [searchFilters, setSearchFilters] = useState({
@@ -74,16 +43,65 @@ const FindDonor = () => {
     urgency: 'normal'
   });
 
-  const [filteredDonors, setFilteredDonors] = useState<Donor[]>(mockDonors);
+  const [filteredDonors, setFilteredDonors] = useState<Donor[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [showMap, setShowMap] = useState(true);
+  const [allDonors, setAllDonors] = useState<Donor[]>([]);
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+  // Fetch donors from database
+  const fetchDonors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('is_available', true)
+        .not('blood_group', 'is', null);
+
+      if (error) throw error;
+
+      const donors: Donor[] = data.map(profile => ({
+        id: profile.id,
+        name: profile.full_name,
+        bloodGroup: profile.blood_group,
+        location: profile.location || `${profile.city || 'Unknown'}`,
+        distance: '0 km', // You can calculate this based on user location
+        lastDonation: profile.last_donation_date 
+          ? formatLastDonation(profile.last_donation_date) 
+          : 'Never donated',
+        verified: profile.is_verified,
+        available: profile.is_available,
+        phone: profile.phone || '',
+        coordinates: [
+          profile.latitude || 28.6139, 
+          profile.longitude || 77.2090
+        ] as [number, number]
+      }));
+
+      setAllDonors(donors);
+      setFilteredDonors(donors);
+    } catch (error) {
+      console.error('Error fetching donors:', error);
+    }
+  };
+
+  const formatLastDonation = (date: string) => {
+    const donationDate = new Date(date);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - donationDate.getTime());
+    const diffMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30));
+    
+    if (diffMonths === 0) return 'This month';
+    if (diffMonths === 1) return '1 month ago';
+    return `${diffMonths} months ago`;
+  };
 
   const handleSearch = () => {
     setIsSearching(true);
     
     setTimeout(() => {
-      let filtered = mockDonors;
+      let filtered = allDonors;
       
       if (searchFilters.bloodGroup) {
         filtered = filtered.filter(donor => donor.bloodGroup === searchFilters.bloodGroup);
@@ -98,8 +116,33 @@ const FindDonor = () => {
       
       setFilteredDonors(filtered);
       setIsSearching(false);
-    }, 1000);
+    }, 500);
   };
+
+  // Load donors on component mount and set up real-time updates
+  useEffect(() => {
+    fetchDonors();
+
+    // Set up real-time subscription for new donors
+    const channel = supabase
+      .channel('profiles_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        () => {
+          fetchDonors(); // Refresh donors when changes occur
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
@@ -194,6 +237,45 @@ const FindDonor = () => {
             </p>
           </div>
         )}
+
+        {/* Map Section */}
+        <Card className="mb-8 shadow-lg">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center space-x-2">
+                <MapIcon className="w-5 h-5 text-primary" />
+                <span>Donor & Emergency Locations Map</span>
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMap(!showMap)}
+              >
+                {showMap ? 'Hide Map' : 'Show Map'}
+              </Button>
+            </div>
+          </CardHeader>
+          {showMap && (
+            <CardContent>
+              <Map 
+                donors={filteredDonors}
+                emergencyLocations={mockEmergencyLocations}
+                center={[28.6139, 77.2090]}
+                zoom={6}
+              />
+              <div className="mt-4 flex items-center justify-center space-x-6 text-sm text-muted-foreground">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-red-600 rounded-full"></div>
+                  <span>Blood Donors</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                  <span>Emergency Locations</span>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
 
         {/* Results */}
         <div className="space-y-4">

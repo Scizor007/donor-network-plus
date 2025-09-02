@@ -174,9 +174,12 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           age: number | null
           blood_group: string | null
+          city: string | null
           created_at: string
+          distance_km: number | null
           email: string
           full_name: string
           gender: string | null
@@ -184,15 +187,23 @@ export type Database = {
           is_available: boolean | null
           is_verified: boolean | null
           last_donation_date: string | null
+          latitude: number | null
           location: string | null
+          longitude: number | null
+          medical_conditions: boolean | null
           phone: string | null
+          recent_illness: boolean | null
+          taking_medications: boolean | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          address?: string | null
           age?: number | null
           blood_group?: string | null
+          city?: string | null
           created_at?: string
+          distance_km?: number | null
           email: string
           full_name: string
           gender?: string | null
@@ -200,15 +211,23 @@ export type Database = {
           is_available?: boolean | null
           is_verified?: boolean | null
           last_donation_date?: string | null
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
+          medical_conditions?: boolean | null
           phone?: string | null
+          recent_illness?: boolean | null
+          taking_medications?: boolean | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          address?: string | null
           age?: number | null
           blood_group?: string | null
+          city?: string | null
           created_at?: string
+          distance_km?: number | null
           email?: string
           full_name?: string
           gender?: string | null
@@ -216,8 +235,13 @@ export type Database = {
           is_available?: boolean | null
           is_verified?: boolean | null
           last_donation_date?: string | null
+          latitude?: number | null
           location?: string | null
+          longitude?: number | null
+          medical_conditions?: boolean | null
           phone?: string | null
+          recent_illness?: boolean | null
+          taking_medications?: boolean | null
           updated_at?: string
           user_id?: string
         }
