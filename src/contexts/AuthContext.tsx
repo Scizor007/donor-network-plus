@@ -51,6 +51,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -73,14 +74,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .eq('user_id', userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+      if (error && error.code === 'PGRST116') {
+        // Profile doesn't exist, create one
+        console.log('Profile not found, creating new profile for user:', userId);
+        await createProfile(userId);
+      } else if (error) {
         console.error('Error fetching profile:', error);
+        setLoading(false);
       } else {
         setProfile(data);
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
-    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createProfile = async (userId: string) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: userId,
+          email: userData.user.email!,
+          full_name: userData.user.user_metadata?.full_name || 
+                    userData.user.user_metadata?.name || 
+                    userData.user.email?.split('@')[0] || 'User',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating profile:', error);
+        setLoading(false);
+      } else {
+        setProfile(data);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error creating profile:', error);
       setLoading(false);
     }
   };

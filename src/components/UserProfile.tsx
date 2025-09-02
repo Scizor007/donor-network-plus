@@ -7,12 +7,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, User, Mail, Phone, MapPin, Calendar, Droplets } from 'lucide-react';
+import { Loader2, User, Mail, Phone, MapPin, Calendar, Droplets, ArrowRight, Home, Heart } from 'lucide-react';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 export const UserProfile: React.FC = () => {
   const { user, profile, updateProfile, loading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Debug logging
+  console.log('UserProfile - User:', user);
+  console.log('UserProfile - Profile:', profile);
+  console.log('UserProfile - Loading:', loading);
+
+  // Timeout fallback for loading state
+  React.useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 10000); // 10 second timeout
+
+      return () => clearTimeout(timer);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     email: profile?.email || '',
@@ -65,11 +85,33 @@ export const UserProfile: React.FC = () => {
     setIsEditing(false);
   };
 
-  if (loading) {
+  if (loading && !loadingTimeout) {
     return (
       <Card className="w-full max-w-2xl mx-auto">
-        <CardContent className="flex items-center justify-center p-8">
+        <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
           <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-gray-600">Loading your profile...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loadingTimeout) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>Loading Timeout</CardTitle>
+          <CardDescription>
+            There seems to be an issue loading your profile. Please try refreshing the page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button onClick={() => window.location.reload()} className="w-full">
+            Refresh Page
+          </Button>
+          <Button variant="outline" onClick={() => window.location.href = '/'} className="w-full">
+            Go Home
+          </Button>
         </CardContent>
       </Card>
     );
@@ -248,6 +290,46 @@ export const UserProfile: React.FC = () => {
               Edit Profile
             </Button>
           )}
+        </div>
+
+        {/* Navigation Actions */}
+        <div className="border-t pt-6 mt-6">
+          <div className="text-center mb-4">
+            <h3 className="text-lg font-semibold mb-2">What would you like to do next?</h3>
+            <p className="text-gray-600 text-sm">Complete your donor journey and help save lives</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link to="/" className="block">
+              <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2">
+                <Home className="h-6 w-6" />
+                <div className="text-center">
+                  <div className="font-medium">Go Home</div>
+                  <div className="text-xs text-gray-500">Return to main page</div>
+                </div>
+              </Button>
+            </Link>
+            
+            <Link to="/find-donor" className="block">
+              <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2">
+                <Heart className="h-6 w-6 text-red-500" />
+                <div className="text-center">
+                  <div className="font-medium">Find Blood</div>
+                  <div className="text-xs text-gray-500">Search for donors</div>
+                </div>
+              </Button>
+            </Link>
+            
+            <Link to="/register" className="block">
+              <Button className="w-full h-auto p-4 flex flex-col items-center space-y-2 bg-primary hover:bg-primary/90">
+                <ArrowRight className="h-6 w-6" />
+                <div className="text-center">
+                  <div className="font-medium">Become a Donor</div>
+                  <div className="text-xs text-white/80">Complete registration</div>
+                </div>
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>
