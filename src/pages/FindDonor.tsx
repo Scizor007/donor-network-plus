@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, MapPin, Phone, Calendar, Shield, Heart, Map as MapIcon } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Map from '@/components/Map';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Donor {
   id: string;
@@ -32,137 +33,8 @@ interface EmergencyLocation {
   isOpen24h: boolean;
 }
 
-const mockDonors: Donor[] = [
-  {
-    id: '1',
-    name: 'Rajesh Kumar',
-    bloodGroup: 'O+',
-    location: 'Connaught Place, Delhi',
-    distance: '0.8 km',
-    lastDonation: '3 months ago',
-    verified: true,
-    available: true,
-    phone: '+91 9876543210',
-    coordinates: [28.6315, 77.2167]
-  },
-  {
-    id: '2',
-    name: 'Priya Sharma',
-    bloodGroup: 'O+',
-    location: 'Bandra West, Mumbai',
-    distance: '1.5 km',
-    lastDonation: '4 months ago',
-    verified: true,
-    available: true,
-    phone: '+91 8765432109',
-    coordinates: [19.0596, 72.8295]
-  },
-  {
-    id: '3',
-    name: 'Amit Patel',
-    bloodGroup: 'A+',
-    location: 'Koramangala, Bangalore',
-    distance: '2.3 km',
-    lastDonation: '2 months ago',
-    verified: false,
-    available: true,
-    phone: '+91 7654321098',
-    coordinates: [12.9279, 77.6271]
-  },
-  {
-    id: '4',
-    name: 'Sneha Reddy',
-    bloodGroup: 'O+',
-    location: 'T Nagar, Chennai',
-    distance: '3.2 km',
-    lastDonation: '5 months ago',
-    verified: true,
-    available: false,
-    phone: '+91 6543210987',
-    coordinates: [13.0418, 80.2341]
-  },
-  {
-    id: '5',
-    name: 'Vikash Singh',
-    bloodGroup: 'B+',
-    location: 'Gomti Nagar, Lucknow',
-    distance: '1.8 km',
-    lastDonation: '3 months ago',
-    verified: true,
-    available: true,
-    phone: '+91 9123456780',
-    coordinates: [26.8467, 80.9462]
-  },
-  {
-    id: '6',
-    name: 'Kavya Nair',
-    bloodGroup: 'AB+',
-    location: 'Marine Drive, Kochi',
-    distance: '2.7 km',
-    lastDonation: '6 months ago',
-    verified: true,
-    available: true,
-    phone: '+91 8234567891',
-    coordinates: [9.9312, 76.2673]
-  }
-];
 
-const mockEmergencyLocations: EmergencyLocation[] = [
-  {
-    id: '1',
-    name: 'All India Institute of Medical Sciences (AIIMS)',
-    type: 'hospital',
-    address: 'Ansari Nagar, New Delhi 110029',
-    phone: '+91 11 2659 8663',
-    coordinates: [28.5672, 77.2100],
-    isOpen24h: true
-  },
-  {
-    id: '2',
-    name: 'Indian Red Cross Society Blood Bank',
-    type: 'blood_bank',
-    address: 'Red Cross Bhawan, New Delhi 110001',
-    phone: '+91 11 2371 6441',
-    coordinates: [28.6139, 77.2090],
-    isOpen24h: false
-  },
-  {
-    id: '3',
-    name: 'King Edward Memorial Hospital',
-    type: 'hospital',
-    address: 'Acharya Donde Marg, Parel, Mumbai 400012',
-    phone: '+91 22 2417 7777',
-    coordinates: [19.0176, 72.8401],
-    isOpen24h: true
-  },
-  {
-    id: '4',
-    name: 'Tata Memorial Blood Bank',
-    type: 'blood_bank',
-    address: 'Dr E Borges Road, Parel, Mumbai 400012',
-    phone: '+91 22 2417 7000',
-    coordinates: [19.0144, 72.8397],
-    isOpen24h: true
-  },
-  {
-    id: '5',
-    name: 'Apollo Hospitals',
-    type: 'hospital',
-    address: '21 Greams Lane, Off Greams Road, Chennai 600006',
-    phone: '+91 44 2829 0200',
-    coordinates: [13.0569, 80.2503],
-    isOpen24h: true
-  },
-  {
-    id: '6',
-    name: 'Bangalore Medical Services Trust Blood Bank',
-    type: 'blood_bank',
-    address: 'Victoria Hospital Campus, Fort, Bangalore 560002',
-    phone: '+91 80 2670 1150',
-    coordinates: [12.9716, 77.5946],
-    isOpen24h: false
-  }
-];
+const mockEmergencyLocations: EmergencyLocation[] = [];
 
 const FindDonor = () => {
   const [searchFilters, setSearchFilters] = useState({
@@ -171,17 +43,65 @@ const FindDonor = () => {
     urgency: 'normal'
   });
 
-  const [filteredDonors, setFilteredDonors] = useState<Donor[]>(mockDonors);
+  const [filteredDonors, setFilteredDonors] = useState<Donor[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showMap, setShowMap] = useState(true);
+  const [allDonors, setAllDonors] = useState<Donor[]>([]);
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+  // Fetch donors from database
+  const fetchDonors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('is_available', true)
+        .not('blood_group', 'is', null);
+
+      if (error) throw error;
+
+      const donors: Donor[] = data.map(profile => ({
+        id: profile.id,
+        name: profile.full_name,
+        bloodGroup: profile.blood_group,
+        location: profile.location || `${profile.city || 'Unknown'}`,
+        distance: '0 km', // You can calculate this based on user location
+        lastDonation: profile.last_donation_date 
+          ? formatLastDonation(profile.last_donation_date) 
+          : 'Never donated',
+        verified: profile.is_verified,
+        available: profile.is_available,
+        phone: profile.phone || '',
+        coordinates: [
+          profile.latitude || 28.6139, 
+          profile.longitude || 77.2090
+        ] as [number, number]
+      }));
+
+      setAllDonors(donors);
+      setFilteredDonors(donors);
+    } catch (error) {
+      console.error('Error fetching donors:', error);
+    }
+  };
+
+  const formatLastDonation = (date: string) => {
+    const donationDate = new Date(date);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - donationDate.getTime());
+    const diffMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30));
+    
+    if (diffMonths === 0) return 'This month';
+    if (diffMonths === 1) return '1 month ago';
+    return `${diffMonths} months ago`;
+  };
 
   const handleSearch = () => {
     setIsSearching(true);
     
     setTimeout(() => {
-      let filtered = mockDonors;
+      let filtered = allDonors;
       
       if (searchFilters.bloodGroup) {
         filtered = filtered.filter(donor => donor.bloodGroup === searchFilters.bloodGroup);
@@ -196,8 +116,33 @@ const FindDonor = () => {
       
       setFilteredDonors(filtered);
       setIsSearching(false);
-    }, 1000);
+    }, 500);
   };
+
+  // Load donors on component mount and set up real-time updates
+  useEffect(() => {
+    fetchDonors();
+
+    // Set up real-time subscription for new donors
+    const channel = supabase
+      .channel('profiles_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        () => {
+          fetchDonors(); // Refresh donors when changes occur
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {

@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Heart, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Navigation from '@/components/Navigation';
+import { supabase } from '@/integrations/supabase/client';
 
 const DonorRegistration = () => {
   const { toast } = useToast();
@@ -60,7 +61,7 @@ const DonorRegistration = () => {
     }, 1500);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.consent) {
@@ -81,10 +82,96 @@ const DonorRegistration = () => {
       return;
     }
 
-    toast({
-      title: "Registration Successful! 🎉",
-      description: "Thank you for joining our life-saving community. You'll receive a confirmation email shortly.",
-    });
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to register as a donor.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Simple geocoding for Indian cities (you can enhance this with a real geocoding service)
+      const getCoordinates = (city: string) => {
+        const cityCoordinates: { [key: string]: [number, number] } = {
+          'delhi': [28.6139, 77.2090],
+          'mumbai': [19.0760, 72.8777],
+          'bangalore': [12.9716, 77.5946],
+          'chennai': [13.0827, 80.2707],
+          'kolkata': [22.5726, 88.3639],
+          'hyderabad': [17.3850, 78.4867],
+          'pune': [18.5204, 73.8567],
+          'ahmedabad': [23.0225, 72.5714],
+        };
+        const lowerCity = city.toLowerCase();
+        return cityCoordinates[lowerCity] || [28.6139, 77.2090]; // Default to Delhi
+      };
+
+      const [latitude, longitude] = getCoordinates(formData.city);
+
+      // Insert donor profile
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: user.id,
+          full_name: formData.fullName,
+          age: parseInt(formData.age),
+          gender: formData.gender,
+          blood_group: formData.bloodGroup,
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          city: formData.city,
+          location: `${formData.city}, ${formData.address}`,
+          last_donation_date: formData.lastDonation || null,
+          medical_conditions: formData.medicalConditions,
+          taking_medications: formData.medications,
+          recent_illness: formData.recentIllness,
+          latitude,
+          longitude,
+          is_available: true,
+          is_verified: false
+        });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      toast({
+        title: "Registration Successful! 🎉",
+        description: "Thank you for joining our life-saving community. You'll receive a confirmation email shortly.",
+      });
+
+      // Reset form
+      setFormData({
+        fullName: '',
+        age: '',
+        gender: '',
+        bloodGroup: '',
+        phone: '',
+        email: '',
+        address: '',
+        city: '',
+        lastDonation: '',
+        medicalConditions: false,
+        medications: false,
+        recentIllness: false,
+        consent: false
+      });
+      setEligibilityStatus(null);
+
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast({
+        title: "Registration Failed",
+        description: "There was an error registering your profile. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
