@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import NotificationSystem from './NotificationSystem';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -71,12 +72,30 @@ const Navigation = () => {
             >
               Learn More
             </Link>
+            <Link
+              to="/blood-status"
+              className={`text-sm font-medium transition-colors ${
+                isActive('/blood-status') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Check Status
+            </Link>
+            <Link
+              to="/hospital"
+              className={`text-sm font-medium transition-colors ${
+                isActive('/hospital') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Hospital Portal
+            </Link>
           </div>
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
-              <DropdownMenu>
+              <>
+                <NotificationSystem />
+                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
@@ -114,6 +133,7 @@ const Navigation = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </>
             ) : (
               <>
                 <Link to="/login">

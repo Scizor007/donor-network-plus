@@ -142,6 +142,100 @@ export type Database = {
         }
         Relationships: []
       }
+      donation_requests: {
+        Row: {
+          blood_group: string
+          campaign_name: string
+          contact_phone: string
+          created_at: string | null
+          description: string | null
+          event_date: string | null
+          hospital_id: string
+          id: string
+          location: string | null
+          status: string | null
+          units_needed: number | null
+          updated_at: string | null
+          urgency_level: string | null
+        }
+        Insert: {
+          blood_group: string
+          campaign_name: string
+          contact_phone: string
+          created_at?: string | null
+          description?: string | null
+          event_date?: string | null
+          hospital_id: string
+          id?: string
+          location?: string | null
+          status?: string | null
+          units_needed?: number | null
+          updated_at?: string | null
+          urgency_level?: string | null
+        }
+        Update: {
+          blood_group?: string
+          campaign_name?: string
+          contact_phone?: string
+          created_at?: string | null
+          description?: string | null
+          event_date?: string | null
+          hospital_id?: string
+          id?: string
+          location?: string | null
+          status?: string | null
+          units_needed?: number | null
+          updated_at?: string | null
+          urgency_level?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donation_requests_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "blood_banks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospital_staff: {
+        Row: {
+          created_at: string | null
+          hospital_id: string
+          id: string
+          is_active: boolean | null
+          role: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          hospital_id: string
+          id?: string
+          is_active?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          hospital_id?: string
+          id?: string
+          is_active?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_staff_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "blood_banks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -183,9 +277,12 @@ export type Database = {
           email: string
           full_name: string
           gender: string | null
+          health_report_url: string | null
+          hospital_license: string | null
           id: string
           is_available: boolean | null
           is_verified: boolean | null
+          is_verified_hospital: boolean | null
           last_donation_date: string | null
           latitude: number | null
           location: string | null
@@ -196,6 +293,7 @@ export type Database = {
           taking_medications: boolean | null
           updated_at: string
           user_id: string
+          user_type: string | null
         }
         Insert: {
           address?: string | null
@@ -207,9 +305,12 @@ export type Database = {
           email: string
           full_name: string
           gender?: string | null
+          health_report_url?: string | null
+          hospital_license?: string | null
           id?: string
           is_available?: boolean | null
           is_verified?: boolean | null
+          is_verified_hospital?: boolean | null
           last_donation_date?: string | null
           latitude?: number | null
           location?: string | null
@@ -220,6 +321,7 @@ export type Database = {
           taking_medications?: boolean | null
           updated_at?: string
           user_id: string
+          user_type?: string | null
         }
         Update: {
           address?: string | null
@@ -231,9 +333,12 @@ export type Database = {
           email?: string
           full_name?: string
           gender?: string | null
+          health_report_url?: string | null
+          hospital_license?: string | null
           id?: string
           is_available?: boolean | null
           is_verified?: boolean | null
+          is_verified_hospital?: boolean | null
           last_donation_date?: string | null
           latitude?: number | null
           location?: string | null
@@ -244,6 +349,7 @@ export type Database = {
           taking_medications?: boolean | null
           updated_at?: string
           user_id?: string
+          user_type?: string | null
         }
         Relationships: []
       }
