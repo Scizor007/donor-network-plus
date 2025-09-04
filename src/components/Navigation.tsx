@@ -65,14 +65,6 @@ const Navigation = () => {
               Eligibility
             </Link>
             <Link
-              to="/awareness"
-              className={`text-sm font-medium transition-colors ${
-                isActive('/awareness') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Learn More
-            </Link>
-            <Link
               to="/blood-status"
               className={`text-sm font-medium transition-colors ${
                 isActive('/blood-status') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
@@ -194,15 +186,6 @@ const Navigation = () => {
                 }`}
               >
                 Eligibility
-              </Link>
-              <Link
-                to="/awareness"
-                onClick={() => setIsOpen(false)}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive('/awareness') ? 'text-primary' : 'text-muted-foreground'
-                }`}
-              >
-                Learn More
               </Link>
               <div className="flex flex-col space-y-2 pt-4">
                 {user ? (

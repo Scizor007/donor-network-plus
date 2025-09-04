@@ -8,7 +8,6 @@ import Index from "./pages/Index";
 import DonorRegistration from "./pages/DonorRegistration";
 import FindDonor from "./pages/FindDonor";
 import Eligibility from "./pages/Eligibility";
-import AwarenessPage from "./pages/AwarenessPage";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import AuthCallback from "./pages/AuthCallback";
@@ -34,7 +33,6 @@ const App = () => (
             <Route path="/register" element={<DonorRegistration />} />
             <Route path="/find-donor" element={<FindDonor />} />
             <Route path="/eligibility" element={<Eligibility />} />
-            <Route path="/awareness" element={<AwarenessPage />} />
             <Route path="/hospital" element={<HospitalPortal />} />
             <Route path="/blood-status" element={<BloodStatus />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
