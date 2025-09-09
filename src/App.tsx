@@ -15,6 +15,12 @@ import NotFound from "./pages/NotFound";
 import HospitalPortal from "./pages/HospitalPortal";
 import BloodStatus from "./pages/BloodStatus";
 import { AIAssistant } from "@/components/AIAssistant";
+import BloodBanks from "./pages/BloodBanks";
+import Camps from "./pages/Camps";
+import CampDetails from "./pages/CampDetails";
+import RequestBlood from "./pages/RequestBlood";
+import Certificate from "./pages/Certificate";
+import AdminDashboard from "./pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +41,12 @@ const App = () => (
             <Route path="/eligibility" element={<Eligibility />} />
             <Route path="/hospital" element={<HospitalPortal />} />
             <Route path="/blood-status" element={<BloodStatus />} />
+            <Route path="/blood-banks" element={<BloodBanks />} />
+            <Route path="/camps" element={<Camps />} />
+            <Route path="/camps/:id" element={<CampDetails />} />
+            <Route path="/request-blood" element={<RequestBlood />} />
+            <Route path="/certificate" element={<Certificate />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

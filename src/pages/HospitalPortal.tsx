@@ -12,6 +12,7 @@ import Navigation from '@/components/Navigation';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 const HospitalPortal = () => {
   const { toast } = useToast();
@@ -42,6 +43,8 @@ const HospitalPortal = () => {
   useEffect(() => {
     if (user) {
       fetchHospitalData();
+    } else {
+      setLoading(false);
     }
   }, [user]);
 
@@ -216,6 +219,28 @@ const HospitalPortal = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading hospital portal...</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-medical-background">
+        <Navigation />
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <Card>
+            <CardContent className="text-center py-12">
+              <Building2 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Sign in required</h2>
+              <p className="text-muted-foreground mb-4">
+                Please sign in to access the hospital portal.
+              </p>
+              <Link to="/login">
+                <Button>Go to Sign In</Button>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

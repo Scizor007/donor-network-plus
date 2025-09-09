@@ -77,6 +77,38 @@ const Index = () => {
     <div className="min-h-screen">
       <Navigation />
       <Hero />
+
+      {/* Quick Actions */}
+      <section className="py-8 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link to="/blood-banks">
+              <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2">
+                <span className="font-medium">Blood Banks</span>
+                <span className="text-xs text-gray-500">Find licensed centers near you</span>
+              </Button>
+            </Link>
+            <Link to="/camps">
+              <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2">
+                <span className="font-medium">Camps</span>
+                <span className="text-xs text-gray-500">View & register for camps</span>
+              </Button>
+            </Link>
+            <Link to="/request-blood">
+              <Button className="w-full h-auto p-4 flex flex-col items-center space-y-2 bg-primary hover:bg-primary/90">
+                <span className="font-medium">Request Blood</span>
+                <span className="text-xs text-white/80">Submit a requirement to a bank</span>
+              </Button>
+            </Link>
+            <Link to="/certificate">
+              <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2">
+                <span className="font-medium">Certificate</span>
+                <span className="text-xs text-gray-500">Access your donor certificate</span>
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
       
       {/* Blood Donation Awareness Section */}
       <section className="py-20 bg-gray-50">
