@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, MapPin, Phone, Calendar, Shield, Heart, Map as MapIcon } from 'lucide-react';
+import { Search, MapPin, Phone, Calendar, Shield, Heart, Map as MapIcon, Loader2 } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Map from '@/components/Map';
 import { supabase } from '@/integrations/supabase/client';
@@ -157,16 +157,16 @@ const FindDonor = () => {
       <Navigation />
       
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-8">
-          <Search className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-foreground">Find Blood Donors</h1>
-          <p className="text-muted-foreground mt-2">
-            Connect with verified donors in your area
-          </p>
+        <div className="text-center mb-8 animate-in fade-in-50 slide-in-from-top-2">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary mx-auto mb-4 shadow-sm">
+            <Search className="w-8 h-8" />
+          </div>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-primary">Find Blood Donors</h1>
+          <p className="text-muted-foreground mt-2">Connect with verified donors in your area</p>
         </div>
 
         {/* Search Filters */}
-        <Card className="mb-8 shadow-lg">
+        <Card className="mb-8 shadow-lg sticky top-16 z-10 backdrop-blur supports-[backdrop-filter]:bg-white/70 border border-border/60">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Search className="w-5 h-5 text-primary" />
@@ -216,10 +216,17 @@ const FindDonor = () => {
               <div className="flex items-end">
                 <Button 
                   onClick={handleSearch}
-                  className="w-full bg-primary hover:bg-primary/90"
+                  className="w-full bg-primary hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed"
                   disabled={isSearching || !searchFilters.bloodGroup}
                 >
-                  {isSearching ? 'Searching...' : 'Search Donors'}
+                  {isSearching ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Searching...
+                    </span>
+                  ) : (
+                    'Search Donors'
+                  )}
                 </Button>
               </div>
             </div>
@@ -228,7 +235,7 @@ const FindDonor = () => {
 
         {/* Urgency Indicator */}
         {searchFilters.urgency !== 'normal' && (
-          <div className={`${getUrgencyColor(searchFilters.urgency)} text-white p-4 rounded-lg mb-6 text-center`}>
+          <div className={`${getUrgencyColor(searchFilters.urgency)} text-white p-4 rounded-lg mb-6 text-center shadow-md animate-pulse`}>
             <span className="font-semibold">
               {searchFilters.urgency === 'critical' ? '🚨 CRITICAL' : '⚠️ URGENT'} BLOOD NEEDED
             </span>
@@ -239,7 +246,7 @@ const FindDonor = () => {
         )}
 
         {/* Map Section */}
-        <Card className="mb-8 shadow-lg">
+        <Card className="mb-8 shadow-lg animate-in fade-in-50 slide-in-from-bottom-2">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center space-x-2">
@@ -303,8 +310,12 @@ const FindDonor = () => {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {filteredDonors.map((donor) => (
-                <Card key={donor.id} className="shadow-sm hover:shadow-md transition-shadow">
+              {filteredDonors.map((donor, index) => (
+                <Card
+                  key={donor.id}
+                  className="shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 animate-in fade-in-50 slide-in-from-bottom-2"
+                  style={{ animationDelay: `${index * 60}ms` }}
+                >
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
