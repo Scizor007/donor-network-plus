@@ -30,12 +30,23 @@ const DonorRegistration = () => {
 
   const [healthReport, setHealthReport] = useState<File | null>(null);
   const [uploadingReport, setUploadingReport] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [eligibilityStatus, setEligibilityStatus] = useState<'checking' | 'eligible' | 'ineligible' | null>(null);
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
   const checkEligibility = () => {
+    // Validate required fields first
+    if (!formData.age || !formData.fullName || !formData.bloodGroup || !formData.gender) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields before checking eligibility.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const age = parseInt(formData.age);
     const lastDonationDate = formData.lastDonation ? new Date(formData.lastDonation) : null;
     const monthsSinceLastDonation = lastDonationDate 
@@ -47,20 +58,39 @@ const DonorRegistration = () => {
     setTimeout(() => {
       if (age < 18 || age > 65) {
         setEligibilityStatus('ineligible');
+        toast({
+          title: "Age Not Eligible",
+          description: "You must be between 18 and 65 years old to donate blood.",
+          variant: "destructive"
+        });
         return;
       }
       
       if (formData.medicalConditions || formData.medications || formData.recentIllness) {
         setEligibilityStatus('ineligible');
+        toast({
+          title: "Medical Conditions",
+          description: "Please consult with our medical team about your eligibility.",
+          variant: "destructive"
+        });
         return;
       }
       
       if (monthsSinceLastDonation < 3) {
         setEligibilityStatus('ineligible');
+        toast({
+          title: "Recent Donation",
+          description: "You must wait at least 3 months between donations.",
+          variant: "destructive"
+        });
         return;
       }
       
       setEligibilityStatus('eligible');
+      toast({
+        title: "Eligibility Confirmed! ✅",
+        description: "You are eligible to donate blood. You can now proceed with registration.",
+      });
     }, 1500);
   };
 
@@ -97,6 +127,19 @@ const DonorRegistration = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    const requiredFields = ['fullName', 'age', 'gender', 'bloodGroup', 'phone', 'email', 'address', 'city'];
+    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
+    
+    if (missingFields.length > 0) {
+      toast({
+        title: "Missing Information",
+        description: `Please fill in: ${missingFields.join(', ')}`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (!formData.consent) {
       toast({
         title: "Consent Required",
@@ -109,12 +152,14 @@ const DonorRegistration = () => {
     if (eligibilityStatus !== 'eligible') {
       toast({
         title: "Eligibility Check Required",
-        description: "Please complete the eligibility check first.",
+        description: "Please complete the eligibility check first by clicking 'Check Eligibility' button.",
         variant: "destructive"
       });
       return;
     }
 
+    setIsSubmitting(true);
+    
     try {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -221,6 +266,8 @@ const DonorRegistration = () => {
         description: "There was an error registering your profile. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -243,6 +290,26 @@ const DonorRegistration = () => {
               <Heart className="w-5 h-5 text-primary" />
               <span>Donor Registration</span>
             </CardTitle>
+            <div className="flex items-center space-x-4 mt-4 text-sm">
+              <div className={`flex items-center space-x-2 ${formData.fullName && formData.age && formData.bloodGroup && formData.gender ? 'text-green-600' : 'text-muted-foreground'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${formData.fullName && formData.age && formData.bloodGroup && formData.gender ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                  1
+                </div>
+                <span>Fill Details</span>
+              </div>
+              <div className={`flex items-center space-x-2 ${eligibilityStatus === 'eligible' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${eligibilityStatus === 'eligible' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                  2
+                </div>
+                <span>Check Eligibility</span>
+              </div>
+              <div className={`flex items-center space-x-2 ${eligibilityStatus === 'eligible' ? 'text-blue-600' : 'text-muted-foreground'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${eligibilityStatus === 'eligible' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                  3
+                </div>
+                <span>Register</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -443,12 +510,15 @@ const DonorRegistration = () => {
               {/* Eligibility Check */}
               <div className="border-t pt-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Eligibility Check</h3>
+                  <div>
+                    <h3 className="text-lg font-semibold">Eligibility Check</h3>
+                    <p className="text-sm text-muted-foreground">Complete this step to enable registration</p>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={checkEligibility}
-                    disabled={!formData.age || eligibilityStatus === 'checking'}
+                    disabled={!formData.age || !formData.fullName || !formData.bloodGroup || !formData.gender || eligibilityStatus === 'checking'}
                   >
                     {eligibilityStatus === 'checking' ? 'Checking...' : 'Check Eligibility'}
                   </Button>
@@ -486,9 +556,9 @@ const DonorRegistration = () => {
                 type="submit" 
                 size="lg" 
                 className="w-full bg-primary hover:bg-primary/90"
-                disabled={eligibilityStatus !== 'eligible'}
+                disabled={eligibilityStatus !== 'eligible' || isSubmitting}
               >
-                Register as Donor
+                {isSubmitting ? 'Registering...' : 'Register as Donor'}
               </Button>
             </form>
           </CardContent>
