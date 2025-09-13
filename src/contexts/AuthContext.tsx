@@ -122,6 +122,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setLoading(false);
       } else {
         setProfile(data);
+        // Profile is created but not complete, so setup is not complete
+        setProfileSetupComplete(false);
         setLoading(false);
       }
     } catch (error) {
@@ -158,6 +160,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Error signing out:', error);
         throw error;
       }
+      // Clear all state
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setProfileSetupComplete(false);
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {

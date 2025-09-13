@@ -155,7 +155,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
       const [latitude, longitude] = getCoordinates(profileData.city);
 
       // Update profile with detailed information
-      await updateProfile({
+      const profileUpdate = {
         full_name: profileData.fullName,
         age: parseInt(profileData.age),
         gender: profileData.gender,
@@ -174,7 +174,10 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
         is_verified: eligibilityStatus === 'eligible',
         user_type: eligibilityStatus === 'eligible' ? 'donor' : 'user',
         updated_at: new Date().toISOString(),
-      });
+      };
+
+      console.log('Updating profile with:', profileUpdate);
+      await updateProfile(profileUpdate);
 
       toast({
         title: "Profile Created Successfully! 🎉",

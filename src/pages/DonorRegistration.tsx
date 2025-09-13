@@ -142,6 +142,10 @@ const DonorRegistration = () => {
         return;
       }
 
+      console.log('User authenticated:', user.id);
+      console.log('Form data:', formData);
+      console.log('Eligibility status:', eligibilityStatus);
+
 
       // Simple geocoding for Indian cities (you can enhance this with a real geocoding service)
       const getCoordinates = (city: string) => {
@@ -161,11 +165,10 @@ const DonorRegistration = () => {
 
       const [latitude, longitude] = getCoordinates(formData.city);
 
-      // Insert donor profile
-      const { error: insertError } = await supabase
+      // Update existing profile to mark as donor
+      const { error: updateError } = await supabase
         .from('profiles')
-        .insert({
-          user_id: user.id,
+        .update({
           full_name: formData.fullName,
           age: parseInt(formData.age),
           gender: formData.gender,
@@ -183,13 +186,17 @@ const DonorRegistration = () => {
           longitude,
           is_available: true,
           is_verified: eligibilityStatus === 'eligible',
-          user_type: 'donor'
-        });
+          user_type: 'donor',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
 
-      if (insertError) {
-        throw insertError;
+      if (updateError) {
+        console.error('Database update error:', updateError);
+        throw updateError;
       }
 
+      console.log('Profile updated successfully');
       toast({
         title: "Registration Successful! 🎉",
         description: "Thank you for joining our life-saving community. You'll receive a confirmation email shortly.",
@@ -212,6 +219,11 @@ const DonorRegistration = () => {
         consent: false
       });
       setEligibilityStatus(null);
+
+      // Redirect to profile page after successful registration
+      setTimeout(() => {
+        window.location.href = '/profile';
+      }, 2000);
 
     } catch (error) {
       console.error('Registration error:', error);

@@ -307,8 +307,11 @@ const FindDonor = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
+        .eq('user_type', 'donor')
         .eq('is_available', true)
-        .not('blood_group', 'is', null);
+        .not('blood_group', 'is', null)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
 
       if (error) throw error;
 
@@ -330,6 +333,7 @@ const FindDonor = () => {
         ] as [number, number]
       }));
 
+      console.log('Fetched donors from database:', donors);
       setAllDonors(donors);
       setFilteredDonors(donors);
     } catch (error) {
