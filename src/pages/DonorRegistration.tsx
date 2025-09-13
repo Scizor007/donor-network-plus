@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Heart, CheckCircle, AlertCircle, Upload, FileText } from 'lucide-react';
+import { Heart, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Navigation from '@/components/Navigation';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,8 +28,6 @@ const DonorRegistration = () => {
     consent: false
   });
 
-  const [healthReport, setHealthReport] = useState<File | null>(null);
-  const [uploadingReport, setUploadingReport] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [eligibilityStatus, setEligibilityStatus] = useState<'checking' | 'eligible' | 'ineligible' | null>(null);
@@ -94,35 +92,6 @@ const DonorRegistration = () => {
     }, 1500);
   };
 
-  const handleReportUpload = async (file: File) => {
-    if (!file) return null;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-    setUploadingReport(true);
-    try {
-      const { error: uploadError } = await supabase.storage
-        .from('health-reports')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('health-reports')
-        .getPublicUrl(fileName);
-
-      return publicUrl;
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      return null;
-    } finally {
-      setUploadingReport(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,19 +142,6 @@ const DonorRegistration = () => {
         return;
       }
 
-      // Upload health report if provided
-      let healthReportUrl = null;
-      if (healthReport) {
-        healthReportUrl = await handleReportUpload(healthReport);
-        if (!healthReportUrl) {
-          toast({
-            title: "Upload Failed",
-            description: "Failed to upload health report. Please try again.",
-            variant: "destructive"
-          });
-          return;
-        }
-      }
 
       // Simple geocoding for Indian cities (you can enhance this with a real geocoding service)
       const getCoordinates = (city: string) => {
@@ -226,9 +182,8 @@ const DonorRegistration = () => {
           latitude,
           longitude,
           is_available: true,
-          is_verified: false,
-          user_type: 'donor',
-          health_report_url: healthReportUrl
+          is_verified: eligibilityStatus === 'eligible',
+          user_type: 'donor'
         });
 
       if (insertError) {
@@ -256,7 +211,6 @@ const DonorRegistration = () => {
         recentIllness: false,
         consent: false
       });
-      setHealthReport(null);
       setEligibilityStatus(null);
 
     } catch (error) {
@@ -426,47 +380,6 @@ const DonorRegistration = () => {
                   />
                 </div>
 
-                {/* Health Report Upload */}
-                <div className="space-y-2">
-                  <Label htmlFor="healthReport">Upload Health Report (Optional)</Label>
-                  <div className="border-2 border-dashed border-border rounded-lg p-4">
-                    <div className="text-center">
-                      {healthReport ? (
-                        <div className="flex items-center justify-center space-x-2">
-                          <FileText className="w-5 h-5 text-primary" />
-                          <span className="text-sm font-medium">{healthReport.name}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setHealthReport(null)}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                          <div className="text-sm text-muted-foreground mb-2">
-                            Upload recent blood test report or health certificate
-                          </div>
-                          <Input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) setHealthReport(file);
-                            }}
-                            className="max-w-xs mx-auto"
-                          />
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Supported formats: PDF, JPG, PNG (Max 5MB)
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">

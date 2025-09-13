@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const COMPONENTS = ['Whole Blood', 'RBC', 'Platelets', 'Plasma', 'FFP'];
@@ -13,6 +15,8 @@ const URGENCY = ['low', 'medium', 'high'];
 
 const RequestBlood = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [patientName, setPatientName] = useState('');
   const [hospitalName, setHospitalName] = useState('');
   const [bloodGroup, setBloodGroup] = useState<string>('');
@@ -21,21 +25,69 @@ const RequestBlood = () => {
   const [urgency, setUrgency] = useState<string>('medium');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [neededBy, setNeededBy] = useState('');
+  const [additionalNotes, setAdditionalNotes] = useState('');
 
-  const submit = () => {
-    if (!patientName || !hospitalName || !bloodGroup || !component || !units || !city || !state) {
+  const submit = async () => {
+    if (!user) {
+      toast({ title: 'Authentication Required', description: 'Please sign in to submit a blood request.', variant: 'destructive' });
+      return;
+    }
+
+    if (!patientName || !hospitalName || !bloodGroup || !component || !units || !city || !state || !contactPhone) {
       toast({ title: 'Missing details', description: 'Please fill all required fields.', variant: 'destructive' });
       return;
     }
-    toast({ title: 'Request submitted', description: 'Your request has been sent to nearby blood banks.' });
-    setPatientName('');
-    setHospitalName('');
-    setBloodGroup('');
-    setComponent('');
-    setUnits('');
-    setUrgency('medium');
-    setCity('');
-    setState('');
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase
+        .from('blood_requests')
+        .insert({
+          user_id: user.id,
+          patient_name: patientName,
+          hospital_name: hospitalName,
+          hospital_address: `${hospitalName}, ${city}, ${state}`,
+          blood_group: bloodGroup,
+          units_needed: parseInt(units),
+          urgency_level: urgency,
+          contact_phone: contactPhone,
+          needed_by: neededBy || null,
+          additional_notes: additionalNotes || null,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
+      toast({ 
+        title: 'Request submitted successfully! 🎉', 
+        description: 'Your blood request has been sent to nearby blood banks and donors.' 
+      });
+
+      // Reset form
+      setPatientName('');
+      setHospitalName('');
+      setBloodGroup('');
+      setComponent('');
+      setUnits('');
+      setUrgency('medium');
+      setCity('');
+      setState('');
+      setContactPhone('');
+      setNeededBy('');
+      setAdditionalNotes('');
+    } catch (error) {
+      console.error('Error submitting request:', error);
+      toast({ 
+        title: 'Submission Failed', 
+        description: 'There was an error submitting your request. Please try again.', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -110,9 +162,29 @@ const RequestBlood = () => {
                 <Label>State</Label>
                 <Input placeholder="State" value={state} onChange={(e) => setState(e.target.value)} />
               </div>
+              <div>
+                <Label>Contact Phone *</Label>
+                <Input placeholder="Your contact number" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+              </div>
+              <div>
+                <Label>Needed By (Optional)</Label>
+                <Input type="datetime-local" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} />
+              </div>
             </div>
             <div className="pt-4">
-              <Button onClick={submit}>Submit Request</Button>
+              <Label>Additional Notes (Optional)</Label>
+              <textarea 
+                className="w-full p-2 border rounded-md mt-1" 
+                rows={3} 
+                placeholder="Any additional information about the patient or requirements..."
+                value={additionalNotes} 
+                onChange={(e) => setAdditionalNotes(e.target.value)} 
+              />
+            </div>
+            <div className="pt-4">
+              <Button onClick={submit} disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Submit Request'}
+              </Button>
             </div>
           </CardContent>
         </Card>

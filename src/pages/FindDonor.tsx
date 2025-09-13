@@ -361,13 +361,39 @@ const FindDonor = () => {
       if (searchFilters.location) {
         filtered = filtered.filter(donor => 
           donor.location.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
-          donor.name.toLowerCase().includes(searchFilters.location.toLowerCase())
+          donor.name.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
+          donor.city?.toLowerCase().includes(searchFilters.location.toLowerCase())
         );
       }
+      
+      // Filter by availability
+      filtered = filtered.filter(donor => donor.available);
       
       setFilteredDonors(filtered);
       setIsSearching(false);
     }, 500);
+  };
+
+  // Real-time search as user types
+  const handleRealTimeSearch = () => {
+    let filtered = allDonors;
+    
+    if (searchFilters.bloodGroup) {
+      filtered = filtered.filter(donor => donor.bloodGroup === searchFilters.bloodGroup);
+    }
+    
+    if (searchFilters.location) {
+      filtered = filtered.filter(donor => 
+        donor.location.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
+        donor.name.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
+        donor.city?.toLowerCase().includes(searchFilters.location.toLowerCase())
+      );
+    }
+    
+    // Filter by availability
+    filtered = filtered.filter(donor => donor.available);
+    
+    setFilteredDonors(filtered);
   };
 
   // Fetch emergency locations from database
@@ -429,6 +455,11 @@ const FindDonor = () => {
       console.error('Error fetching blood camps:', error);
     }
   };
+
+  // Real-time search effect
+  useEffect(() => {
+    handleRealTimeSearch();
+  }, [searchFilters, allDonors]);
 
   // Load data on component mount and set up real-time updates
   useEffect(() => {
@@ -556,11 +587,11 @@ const FindDonor = () => {
                 </Select>
               </div>
 
-              <div className="flex items-end">
+              <div className="flex items-end space-x-2">
                 <Button 
                   onClick={handleSearch}
-                  className="w-full bg-primary hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed"
-                  disabled={isSearching || !searchFilters.bloodGroup}
+                  className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed"
+                  disabled={isSearching}
                 >
                   {isSearching ? (
                     <span className="inline-flex items-center gap-2">
@@ -570,6 +601,12 @@ const FindDonor = () => {
                   ) : (
                     'Search Donors'
                   )}
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => setSearchFilters({bloodGroup: '', location: '', urgency: 'normal'})}
+                >
+                  Clear
                 </Button>
               </div>
             </div>

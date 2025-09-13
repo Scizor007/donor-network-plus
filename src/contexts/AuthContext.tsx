@@ -10,9 +10,11 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  profileSetupComplete: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
+  completeProfileSetup: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +36,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileSetupComplete, setProfileSetupComplete] = useState(false);
 
   useEffect(() => {
     // Get initial session
@@ -59,6 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await fetchProfile(session.user.id);
       } else {
         setProfile(null);
+        setProfileSetupComplete(false);
         setLoading(false);
       }
     });
@@ -83,6 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setLoading(false);
       } else {
         setProfile(data);
+        // Check if profile setup is complete (has all required fields)
+        const isComplete = data.full_name && data.age && data.gender && data.blood_group && data.phone && data.address && data.city;
+        setProfileSetupComplete(isComplete);
         setLoading(false);
       }
     } catch (error) {
@@ -175,10 +182,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       setProfile(data);
+      // Check if profile setup is complete after update
+      const isComplete = data.full_name && data.age && data.gender && data.blood_group && data.phone && data.address && data.city;
+      setProfileSetupComplete(isComplete);
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
     }
+  };
+
+  const completeProfileSetup = () => {
+    setProfileSetupComplete(true);
   };
 
   const value = {
@@ -186,9 +200,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     profile,
     session,
     loading,
+    profileSetupComplete,
     signInWithGoogle,
     signOut,
     updateProfile,
+    completeProfileSetup,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
