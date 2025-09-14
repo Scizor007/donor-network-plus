@@ -8,10 +8,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Heart, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Navigation from '@/components/Navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { LocationService } from '@/services/locationService';
 
 const DonorRegistration = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     fullName: '',
     age: '',
@@ -47,12 +50,12 @@ const DonorRegistration = () => {
 
     const age = parseInt(formData.age);
     const lastDonationDate = formData.lastDonation ? new Date(formData.lastDonation) : null;
-    const monthsSinceLastDonation = lastDonationDate 
+    const monthsSinceLastDonation = lastDonationDate
       ? (Date.now() - lastDonationDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
       : 12; // Assume eligible if no previous donation
 
     setEligibilityStatus('checking');
-    
+
     setTimeout(() => {
       if (age < 18 || age > 65) {
         setEligibilityStatus('ineligible');
@@ -63,7 +66,7 @@ const DonorRegistration = () => {
         });
         return;
       }
-      
+
       if (formData.medicalConditions || formData.medications || formData.recentIllness) {
         setEligibilityStatus('ineligible');
         toast({
@@ -73,7 +76,7 @@ const DonorRegistration = () => {
         });
         return;
       }
-      
+
       if (monthsSinceLastDonation < 3) {
         setEligibilityStatus('ineligible');
         toast({
@@ -83,7 +86,7 @@ const DonorRegistration = () => {
         });
         return;
       }
-      
+
       setEligibilityStatus('eligible');
       toast({
         title: "Eligibility Confirmed! ✅",
@@ -95,11 +98,11 @@ const DonorRegistration = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate required fields
     const requiredFields = ['fullName', 'age', 'gender', 'bloodGroup', 'phone', 'email', 'address', 'city'];
     const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
-    
+
     if (missingFields.length > 0) {
       toast({
         title: "Missing Information",
@@ -108,7 +111,7 @@ const DonorRegistration = () => {
       });
       return;
     }
-    
+
     if (!formData.consent) {
       toast({
         title: "Consent Required",
@@ -128,11 +131,11 @@ const DonorRegistration = () => {
     }
 
     setIsSubmitting(true);
-    
+
     try {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+
       if (userError || !user) {
         toast({
           title: "Authentication Required",
@@ -147,53 +150,92 @@ const DonorRegistration = () => {
       console.log('Eligibility status:', eligibilityStatus);
 
 
-      // Simple geocoding for Indian cities (you can enhance this with a real geocoding service)
-      const getCoordinates = (city: string) => {
-        const cityCoordinates: { [key: string]: [number, number] } = {
-          'delhi': [28.6139, 77.2090],
-          'mumbai': [19.0760, 72.8777],
-          'bangalore': [12.9716, 77.5946],
-          'chennai': [13.0827, 80.2707],
-          'kolkata': [22.5726, 88.3639],
-          'hyderabad': [17.3850, 78.4867],
-          'pune': [18.5204, 73.8567],
-          'ahmedabad': [23.0225, 72.5714],
-        };
-        const lowerCity = city.toLowerCase();
-        return cityCoordinates[lowerCity] || [28.6139, 77.2090]; // Default to Delhi
-      };
+      // Get coordinates using location service
+      let latitude: number;
+      let longitude: number;
 
-      const [latitude, longitude] = getCoordinates(formData.city);
+      try {
+        const coords = await LocationService.getCityCoordinates(formData.city);
+        latitude = coords.latitude;
+        longitude = coords.longitude;
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        // Fallback to default coordinates
+        latitude = 28.6139;
+        longitude = 77.2090;
+      }
 
-      // Update existing profile to mark as donor
-      const { error: updateError } = await supabase
+      // First check if profile exists
+      const { data: existingProfile, error: profileCheckError } = await supabase
         .from('profiles')
-        .update({
-          full_name: formData.fullName,
-          age: parseInt(formData.age),
-          gender: formData.gender,
-          blood_group: formData.bloodGroup,
-          phone: formData.phone,
-          email: formData.email,
-          address: formData.address,
-          city: formData.city,
-          location: `${formData.city}, ${formData.address}`,
-          last_donation_date: formData.lastDonation || null,
-          medical_conditions: formData.medicalConditions,
-          taking_medications: formData.medications,
-          recent_illness: formData.recentIllness,
-          latitude,
-          longitude,
-          is_available: true,
-          is_verified: eligibilityStatus === 'eligible',
-          user_type: 'donor',
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-      if (updateError) {
-        console.error('Database update error:', updateError);
-        throw updateError;
+      if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+        console.error('Error checking profile:', profileCheckError);
+        throw profileCheckError;
+      }
+
+      let result;
+      if (existingProfile) {
+        // Update existing profile
+        result = await supabase
+          .from('profiles')
+          .update({
+            full_name: formData.fullName,
+            age: parseInt(formData.age),
+            gender: formData.gender,
+            blood_group: formData.bloodGroup,
+            phone: formData.phone,
+            email: formData.email,
+            address: formData.address,
+            city: formData.city,
+            location: `${formData.city}, ${formData.address}`,
+            last_donation_date: formData.lastDonation || null,
+            medical_conditions: formData.medicalConditions,
+            taking_medications: formData.medications,
+            recent_illness: formData.recentIllness,
+            latitude,
+            longitude,
+            is_available: true,
+            is_verified: eligibilityStatus === 'eligible',
+            user_type: 'donor',
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Create new profile
+        result = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email || formData.email,
+            full_name: formData.fullName,
+            age: parseInt(formData.age),
+            gender: formData.gender,
+            blood_group: formData.bloodGroup,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            location: `${formData.city}, ${formData.address}`,
+            last_donation_date: formData.lastDonation || null,
+            medical_conditions: formData.medicalConditions,
+            taking_medications: formData.medications,
+            recent_illness: formData.recentIllness,
+            latitude,
+            longitude,
+            is_available: true,
+            is_verified: eligibilityStatus === 'eligible',
+            user_type: 'donor',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+      }
+
+      if (result.error) {
+        console.error('Database operation error:', result.error);
+        throw result.error;
       }
 
       console.log('Profile updated successfully');
@@ -220,16 +262,17 @@ const DonorRegistration = () => {
       });
       setEligibilityStatus(null);
 
-      // Redirect to profile page after successful registration
+      // Wait a bit for the profile to be fully created, then redirect
       setTimeout(() => {
+        // Force a page reload to ensure fresh data
         window.location.href = '/profile';
-      }, 2000);
+      }, 3000);
 
     } catch (error) {
       console.error('Registration error:', error);
       toast({
         title: "Registration Failed",
-        description: "There was an error registering your profile. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error registering your profile. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -240,7 +283,7 @@ const DonorRegistration = () => {
   return (
     <div className="min-h-screen bg-medical-background">
       <Navigation />
-      
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-8">
           <Heart className="w-12 h-12 text-primary mx-auto mb-4" />
@@ -286,11 +329,11 @@ const DonorRegistration = () => {
                   <Input
                     id="fullName"
                     value={formData.fullName}
-                    onChange={(e) => setFormData({...formData, fullName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="age">Age *</Label>
                   <Input
@@ -299,14 +342,14 @@ const DonorRegistration = () => {
                     min="18"
                     max="65"
                     value={formData.age}
-                    onChange={(e) => setFormData({...formData, age: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender *</Label>
-                  <Select onValueChange={(value) => setFormData({...formData, gender: value})}>
+                  <Select onValueChange={(value) => setFormData({ ...formData, gender: value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
@@ -320,7 +363,7 @@ const DonorRegistration = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="bloodGroup">Blood Group *</Label>
-                  <Select onValueChange={(value) => setFormData({...formData, bloodGroup: value})}>
+                  <Select onValueChange={(value) => setFormData({ ...formData, bloodGroup: value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select blood group" />
                     </SelectTrigger>
@@ -338,7 +381,7 @@ const DonorRegistration = () => {
                     id="phone"
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     required
                   />
                 </div>
@@ -349,7 +392,7 @@ const DonorRegistration = () => {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
                   />
                 </div>
@@ -358,11 +401,41 @@ const DonorRegistration = () => {
               {/* Location Information */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="address">Address *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="address">Address *</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const location = await LocationService.getCurrentLocation();
+                          setFormData(prev => ({
+                            ...prev,
+                            address: location.address || prev.address,
+                            city: location.city || prev.city
+                          }));
+                          toast({
+                            title: "Location Updated",
+                            description: "Your current location has been detected and added.",
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Location Access Denied",
+                            description: "Please enter your location manually.",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      📍 Use Current Location
+                    </Button>
+                  </div>
                   <Input
                     id="address"
                     value={formData.address}
-                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     required
                   />
                 </div>
@@ -372,7 +445,7 @@ const DonorRegistration = () => {
                   <Input
                     id="city"
                     value={formData.city}
-                    onChange={(e) => setFormData({...formData, city: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     required
                   />
                 </div>
@@ -381,14 +454,14 @@ const DonorRegistration = () => {
               {/* Medical History */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Medical Information</h3>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="lastDonation">Last Blood Donation Date (if any)</Label>
                   <Input
                     id="lastDonation"
                     type="date"
                     value={formData.lastDonation}
-                    onChange={(e) => setFormData({...formData, lastDonation: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, lastDonation: e.target.value })}
                   />
                 </div>
 
@@ -398,8 +471,8 @@ const DonorRegistration = () => {
                     <Checkbox
                       id="medicalConditions"
                       checked={formData.medicalConditions}
-                      onCheckedChange={(checked) => 
-                        setFormData({...formData, medicalConditions: checked as boolean})}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, medicalConditions: checked as boolean })}
                     />
                     <Label htmlFor="medicalConditions">
                       I have chronic medical conditions (diabetes, heart disease, etc.)
@@ -410,8 +483,8 @@ const DonorRegistration = () => {
                     <Checkbox
                       id="medications"
                       checked={formData.medications}
-                      onCheckedChange={(checked) => 
-                        setFormData({...formData, medications: checked as boolean})}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, medications: checked as boolean })}
                     />
                     <Label htmlFor="medications">
                       I am currently taking medications
@@ -422,8 +495,8 @@ const DonorRegistration = () => {
                     <Checkbox
                       id="recentIllness"
                       checked={formData.recentIllness}
-                      onCheckedChange={(checked) => 
-                        setFormData({...formData, recentIllness: checked as boolean})}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, recentIllness: checked as boolean })}
                     />
                     <Label htmlFor="recentIllness">
                       I have been ill in the past 2 weeks
@@ -469,17 +542,17 @@ const DonorRegistration = () => {
                 <Checkbox
                   id="consent"
                   checked={formData.consent}
-                  onCheckedChange={(checked) => 
-                    setFormData({...formData, consent: checked as boolean})}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, consent: checked as boolean })}
                 />
                 <Label htmlFor="consent" className="text-sm">
                   I agree to the terms and conditions and consent to be contacted for blood donation requests *
                 </Label>
               </div>
 
-              <Button 
-                type="submit" 
-                size="lg" 
+              <Button
+                type="submit"
+                size="lg"
                 className="w-full bg-primary hover:bg-primary/90"
                 disabled={eligibilityStatus !== 'eligible' || isSubmitting}
               >

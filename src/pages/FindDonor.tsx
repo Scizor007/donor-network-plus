@@ -68,6 +68,11 @@ const FindDonor = () => {
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
+  // Load real data on component mount
+  useEffect(() => {
+    fetchRealData();
+  }, []);
+
   // Get user location
   const getUserLocation = () => {
     if (!navigator.geolocation) {
@@ -88,9 +93,90 @@ const FindDonor = () => {
     );
   };
 
-  // Add predefined test data for demonstration
-  const addPredefinedData = () => {
-    // Add some test donors from Indian cities
+  // Fetch real data from database
+  const fetchRealData = async () => {
+    try {
+      // Fetch donors from database
+      const { data: donors, error: donorsError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_type', 'donor')
+        .eq('is_available', true)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
+
+      if (donorsError) {
+        console.error('Error fetching donors:', donorsError);
+        return;
+      }
+
+      const formattedDonors: Donor[] = donors.map(donor => ({
+        id: donor.id,
+        name: donor.full_name,
+        bloodGroup: donor.blood_group,
+        location: donor.location || `${donor.city}, ${donor.address}`,
+        distance: '0 km', // Will be calculated based on user location
+        lastDonation: donor.last_donation_date,
+        verified: donor.is_verified || false,
+        available: donor.is_available || false,
+        phone: donor.phone || '',
+        coordinates: [donor.latitude, donor.longitude],
+        city: donor.city
+      }));
+
+      setAllDonors(formattedDonors);
+      setFilteredDonors(formattedDonors);
+
+      // Fetch emergency locations
+      const { data: locations, error: locationsError } = await supabase
+        .from('emergency_locations')
+        .select('*')
+        .eq('is_active', true);
+
+      if (!locationsError && locations) {
+        const formattedLocations: EmergencyLocation[] = locations.map(location => ({
+          id: location.id,
+          name: location.name,
+          type: location.type,
+          address: location.address,
+          phone: location.phone,
+          coordinates: [location.latitude, location.longitude]
+        }));
+        setEmergencyLocations(formattedLocations);
+      }
+
+      // Fetch blood camps
+      const { data: camps, error: campsError } = await supabase
+        .from('blood_donation_camps')
+        .select('*')
+        .eq('status', 'upcoming')
+        .gte('start_date', new Date().toISOString());
+
+      if (!campsError && camps) {
+        const formattedCamps: BloodCamp[] = camps.map(camp => ({
+          id: camp.id,
+          name: camp.name,
+          venue: camp.venue,
+          date: camp.start_date.split('T')[0],
+          time: new Date(camp.start_date).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }),
+          organizer: camp.organizer_name,
+          expected_units: camp.expected_units,
+          contact_phone: camp.contact_phone,
+          coordinates: [camp.latitude, camp.longitude]
+        }));
+        setBloodCamps(formattedCamps);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
+  // Add some test donors from Indian cities (fallback)
+  const addTestData = () => {
     const testDonors: Donor[] = [
       {
         id: 'test-donor-1',
@@ -321,14 +407,14 @@ const FindDonor = () => {
         bloodGroup: profile.blood_group,
         location: profile.location || `${profile.city || 'Unknown'}`,
         distance: '0 km', // You can calculate this based on user location
-        lastDonation: profile.last_donation_date 
-          ? formatLastDonation(profile.last_donation_date) 
+        lastDonation: profile.last_donation_date
+          ? formatLastDonation(profile.last_donation_date)
           : 'Never donated',
         verified: profile.is_verified,
         available: profile.is_available,
         phone: profile.phone || '',
         coordinates: [
-          profile.latitude || 28.6139, 
+          profile.latitude || 28.6139,
           profile.longitude || 77.2090
         ] as [number, number]
       }));
@@ -346,7 +432,7 @@ const FindDonor = () => {
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - donationDate.getTime());
     const diffMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30));
-    
+
     if (diffMonths === 0) return 'This month';
     if (diffMonths === 1) return '1 month ago';
     return `${diffMonths} months ago`;
@@ -354,25 +440,25 @@ const FindDonor = () => {
 
   const handleSearch = () => {
     setIsSearching(true);
-    
+
     setTimeout(() => {
       let filtered = allDonors;
-      
+
       if (searchFilters.bloodGroup) {
         filtered = filtered.filter(donor => donor.bloodGroup === searchFilters.bloodGroup);
       }
-      
+
       if (searchFilters.location) {
-        filtered = filtered.filter(donor => 
+        filtered = filtered.filter(donor =>
           donor.location.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
           donor.name.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
           donor.city?.toLowerCase().includes(searchFilters.location.toLowerCase())
         );
       }
-      
+
       // Filter by availability
       filtered = filtered.filter(donor => donor.available);
-      
+
       setFilteredDonors(filtered);
       setIsSearching(false);
     }, 500);
@@ -381,22 +467,22 @@ const FindDonor = () => {
   // Real-time search as user types
   const handleRealTimeSearch = () => {
     let filtered = allDonors;
-    
+
     if (searchFilters.bloodGroup) {
       filtered = filtered.filter(donor => donor.bloodGroup === searchFilters.bloodGroup);
     }
-    
+
     if (searchFilters.location) {
-      filtered = filtered.filter(donor => 
+      filtered = filtered.filter(donor =>
         donor.location.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
         donor.name.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
         donor.city?.toLowerCase().includes(searchFilters.location.toLowerCase())
       );
     }
-    
+
     // Filter by availability
     filtered = filtered.filter(donor => donor.available);
-    
+
     setFilteredDonors(filtered);
   };
 
@@ -503,7 +589,7 @@ const FindDonor = () => {
   return (
     <div className="min-h-screen bg-medical-background">
       <Navigation />
-      
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-8 animate-in fade-in-50 slide-in-from-top-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary mx-auto mb-4 shadow-sm">
@@ -536,7 +622,10 @@ const FindDonor = () => {
                   </div>
                 )}
               </div>
-              <Button onClick={addPredefinedData} variant="outline" size="sm">
+              <Button onClick={fetchRealData} variant="outline" size="sm">
+                🔄 Load Real Data
+              </Button>
+              <Button onClick={addTestData} variant="outline" size="sm">
                 🧪 Add Test Data
               </Button>
             </div>
@@ -555,7 +644,13 @@ const FindDonor = () => {
             <div className="grid md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="bloodGroup">Blood Group *</Label>
-                <Select onValueChange={(value) => setSearchFilters({...searchFilters, bloodGroup: value})}>
+                <Select onValueChange={(value) => {
+                  setSearchFilters({ ...searchFilters, bloodGroup: value });
+                  // Trigger real-time search
+                  setTimeout(() => {
+                    handleRealTimeSearch();
+                  }, 300);
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select blood group" />
                   </SelectTrigger>
@@ -573,13 +668,19 @@ const FindDonor = () => {
                   id="location"
                   placeholder="Enter city or area"
                   value={searchFilters.location}
-                  onChange={(e) => setSearchFilters({...searchFilters, location: e.target.value})}
+                  onChange={(e) => {
+                    setSearchFilters({ ...searchFilters, location: e.target.value });
+                    // Trigger real-time search
+                    setTimeout(() => {
+                      handleRealTimeSearch();
+                    }, 300);
+                  }}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="urgency">Urgency Level</Label>
-                <Select onValueChange={(value) => setSearchFilters({...searchFilters, urgency: value})}>
+                <Select onValueChange={(value) => setSearchFilters({ ...searchFilters, urgency: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Normal" />
                   </SelectTrigger>
@@ -592,7 +693,7 @@ const FindDonor = () => {
               </div>
 
               <div className="flex items-end space-x-2">
-                <Button 
+                <Button
                   onClick={handleSearch}
                   className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed"
                   disabled={isSearching}
@@ -606,9 +707,9 @@ const FindDonor = () => {
                     'Search Donors'
                   )}
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
-                  onClick={() => setSearchFilters({bloodGroup: '', location: '', urgency: 'normal'})}
+                  onClick={() => setSearchFilters({ bloodGroup: '', location: '', urgency: 'normal' })}
                 >
                   Clear
                 </Button>
@@ -648,7 +749,7 @@ const FindDonor = () => {
           </CardHeader>
           {showMap && (
             <CardContent>
-              <Map 
+              <Map
                 donors={filteredDonors}
                 emergencyLocations={emergencyLocations}
                 bloodCamps={bloodCamps}
@@ -705,7 +806,7 @@ const FindDonor = () => {
                 <p className="text-muted-foreground mb-4">
                   Try adjusting your search filters or expanding your location range.
                 </p>
-                <Button variant="outline" onClick={() => setSearchFilters({bloodGroup: '', location: '', urgency: 'normal'})}>
+                <Button variant="outline" onClick={() => setSearchFilters({ bloodGroup: '', location: '', urgency: 'normal' })}>
                   Clear Filters
                 </Button>
               </CardContent>
@@ -721,12 +822,11 @@ const FindDonor = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
-                          donor.available ? 'bg-primary' : 'bg-muted-foreground'
-                        }`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${donor.available ? 'bg-primary' : 'bg-muted-foreground'
+                          }`}>
                           {donor.bloodGroup}
                         </div>
-                        
+
                         <div>
                           <div className="flex items-center space-x-2">
                             <h3 className="font-semibold text-foreground">{donor.name}</h3>
@@ -740,7 +840,7 @@ const FindDonor = () => {
                               {donor.available ? 'Available' : 'Unavailable'}
                             </Badge>
                           </div>
-                          
+
                           <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
                             <span className="flex items-center">
                               <MapPin className="w-4 h-4 mr-1" />
@@ -753,7 +853,7 @@ const FindDonor = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"

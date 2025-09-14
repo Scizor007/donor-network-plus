@@ -10,6 +10,8 @@ import { Heart, User, MapPin, Phone, Mail, Calendar, Shield, CheckCircle, XCircl
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { EligibilityTest } from './EligibilityTest';
+import { LocationService } from '@/services/locationService';
 
 interface ProfileSetupProps {
   onComplete: () => void;
@@ -22,6 +24,8 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [eligibilityStatus, setEligibilityStatus] = useState<'checking' | 'eligible' | 'ineligible' | null>(null);
+  const [showEligibilityTest, setShowEligibilityTest] = useState(false);
+  const [eligibilityTestData, setEligibilityTestData] = useState<any>(null);
 
   const [profileData, setProfileData] = useState({
     fullName: '',
@@ -39,7 +43,9 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
     medications: false,
     recentIllness: false,
     lastDonation: '',
-    consent: false
+    consent: false,
+    latitude: null as number | null,
+    longitude: null as number | null
   });
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -51,61 +57,50 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
     'Uttarakhand', 'West Bengal', 'Delhi', 'Chandigarh', 'Puducherry'
   ];
 
-  const checkEligibility = () => {
-    if (!profileData.age || !profileData.fullName || !profileData.bloodGroup || !profileData.gender) {
+  const handleEligibilityTestComplete = (isEligible: boolean, testData: any) => {
+    setEligibilityStatus(isEligible ? 'eligible' : 'ineligible');
+    setEligibilityTestData(testData);
+    setShowEligibilityTest(false);
+
+    toast({
+      title: isEligible ? "Eligible to Donate!" : "Not Eligible",
+      description: isEligible
+        ? "You are eligible to donate blood. You can now proceed with registration."
+        : "Based on your responses, you may not be eligible to donate at this time.",
+    });
+  };
+
+  const handleEligibilityTestSkip = () => {
+    setShowEligibilityTest(false);
+    toast({
+      title: "Eligibility Test Skipped",
+      description: "You can take the eligibility test later from your profile.",
+    });
+  };
+
+  const getCurrentLocation = async () => {
+    try {
+      const location = await LocationService.getCurrentLocation();
+      setProfileData(prev => ({
+        ...prev,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        city: location.city || prev.city,
+        address: location.address || prev.address
+      }));
+
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields before checking eligibility.",
+        title: "Location Updated",
+        description: "Your current location has been detected and added to your profile.",
+      });
+    } catch (error) {
+      console.error('Location error:', error);
+      toast({
+        title: "Location Access Denied",
+        description: "Please enter your location manually.",
         variant: "destructive"
       });
-      return;
     }
-
-    const age = parseInt(profileData.age);
-    const lastDonationDate = profileData.lastDonation ? new Date(profileData.lastDonation) : null;
-    const monthsSinceLastDonation = lastDonationDate 
-      ? (Date.now() - lastDonationDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
-      : 12;
-
-    setEligibilityStatus('checking');
-    
-    setTimeout(() => {
-      if (age < 18 || age > 65) {
-        setEligibilityStatus('ineligible');
-        toast({
-          title: "Age Not Eligible",
-          description: "You must be between 18 and 65 years old to donate blood.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (profileData.medicalConditions || profileData.medications || profileData.recentIllness) {
-        setEligibilityStatus('ineligible');
-        toast({
-          title: "Medical Conditions",
-          description: "Please consult with our medical team about your eligibility.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (monthsSinceLastDonation < 3) {
-        setEligibilityStatus('ineligible');
-        toast({
-          title: "Recent Donation",
-          description: "You must wait at least 3 months between donations.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      setEligibilityStatus('eligible');
-      toast({
-        title: "Eligibility Confirmed! ✅",
-        description: "You are eligible to donate blood.",
-      });
-    }, 1500);
   };
 
   const handleSubmit = async () => {
@@ -114,7 +109,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
     // Validate required fields
     const requiredFields = ['fullName', 'age', 'gender', 'bloodGroup', 'phone', 'address', 'city', 'state'];
     const missingFields = requiredFields.filter(field => !profileData[field as keyof typeof profileData]);
-    
+
     if (missingFields.length > 0) {
       toast({
         title: "Missing Information",
@@ -123,7 +118,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
       });
       return;
     }
-    
+
     if (!profileData.consent) {
       toast({
         title: "Consent Required",
@@ -134,25 +129,24 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
     }
 
     setIsSubmitting(true);
-    
-    try {
-      // Simple geocoding for Indian cities
-      const getCoordinates = (city: string) => {
-        const cityCoordinates: { [key: string]: [number, number] } = {
-          'delhi': [28.6139, 77.2090],
-          'mumbai': [19.0760, 72.8777],
-          'bangalore': [12.9716, 77.5946],
-          'chennai': [13.0827, 80.2707],
-          'kolkata': [22.5726, 88.3639],
-          'hyderabad': [17.3850, 78.4867],
-          'pune': [18.5204, 73.8567],
-          'ahmedabad': [23.0225, 72.5714],
-        };
-        const lowerCity = city.toLowerCase();
-        return cityCoordinates[lowerCity] || [28.6139, 77.2090];
-      };
 
-      const [latitude, longitude] = getCoordinates(profileData.city);
+    try {
+      // Get coordinates - use current location if available, otherwise geocode city
+      let latitude = profileData.latitude;
+      let longitude = profileData.longitude;
+
+      if (!latitude || !longitude) {
+        try {
+          const coords = await LocationService.getCityCoordinates(profileData.city);
+          latitude = coords.latitude;
+          longitude = coords.longitude;
+        } catch (error) {
+          console.error('Geocoding error:', error);
+          // Fallback to default coordinates
+          latitude = 28.6139;
+          longitude = 77.2090;
+        }
+      }
 
       // Update profile with detailed information
       const profileUpdate = {
@@ -181,7 +175,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
 
       toast({
         title: "Profile Created Successfully! 🎉",
-        description: eligibilityStatus === 'eligible' 
+        description: eligibilityStatus === 'eligible'
           ? "You are now registered as a verified donor and can help save lives!"
           : "Your profile has been created. You can take the eligibility test later.",
       });
@@ -228,11 +222,11 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                 <Input
                   id="fullName"
                   value={profileData.fullName}
-                  onChange={(e) => setProfileData({...profileData, fullName: e.target.value})}
+                  onChange={(e) => setProfileData({ ...profileData, fullName: e.target.value })}
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="age">Age *</Label>
                 <Input
@@ -241,14 +235,14 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                   min="18"
                   max="65"
                   value={profileData.age}
-                  onChange={(e) => setProfileData({...profileData, age: e.target.value})}
+                  onChange={(e) => setProfileData({ ...profileData, age: e.target.value })}
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="gender">Gender *</Label>
-                <Select onValueChange={(value) => setProfileData({...profileData, gender: value})}>
+                <Select onValueChange={(value) => setProfileData({ ...profileData, gender: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
@@ -262,7 +256,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
 
               <div className="space-y-2">
                 <Label htmlFor="bloodGroup">Blood Group *</Label>
-                <Select onValueChange={(value) => setProfileData({...profileData, bloodGroup: value})}>
+                <Select onValueChange={(value) => setProfileData({ ...profileData, bloodGroup: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select blood group" />
                   </SelectTrigger>
@@ -280,7 +274,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                   id="phone"
                   type="tel"
                   value={profileData.phone}
-                  onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                   required
                 />
               </div>
@@ -290,7 +284,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                 <Input
                   id="emergencyContact"
                   value={profileData.emergencyContact}
-                  onChange={(e) => setProfileData({...profileData, emergencyContact: e.target.value})}
+                  onChange={(e) => setProfileData({ ...profileData, emergencyContact: e.target.value })}
                 />
               </div>
 
@@ -300,7 +294,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                   id="emergencyPhone"
                   type="tel"
                   value={profileData.emergencyPhone}
-                  onChange={(e) => setProfileData({...profileData, emergencyPhone: e.target.value})}
+                  onChange={(e) => setProfileData({ ...profileData, emergencyPhone: e.target.value })}
                 />
               </div>
             </div>
@@ -317,11 +311,22 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="address">Address *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="address">Address *</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={getCurrentLocation}
+                  className="text-xs"
+                >
+                  📍 Use Current Location
+                </Button>
+              </div>
               <Textarea
                 id="address"
                 value={profileData.address}
-                onChange={(e) => setProfileData({...profileData, address: e.target.value})}
+                onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
                 required
                 rows={3}
               />
@@ -333,14 +338,14 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                 <Input
                   id="city"
                   value={profileData.city}
-                  onChange={(e) => setProfileData({...profileData, city: e.target.value})}
+                  onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="state">State *</Label>
-                <Select onValueChange={(value) => setProfileData({...profileData, state: value})}>
+                <Select onValueChange={(value) => setProfileData({ ...profileData, state: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
@@ -357,7 +362,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                 <Input
                   id="pincode"
                   value={profileData.pincode}
-                  onChange={(e) => setProfileData({...profileData, pincode: e.target.value})}
+                  onChange={(e) => setProfileData({ ...profileData, pincode: e.target.value })}
                 />
               </div>
             </div>
@@ -379,20 +384,20 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                 id="lastDonation"
                 type="date"
                 value={profileData.lastDonation}
-                onChange={(e) => setProfileData({...profileData, lastDonation: e.target.value})}
+                onChange={(e) => setProfileData({ ...profileData, lastDonation: e.target.value })}
               />
             </div>
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Health Declaration</h3>
-              
+
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="medicalConditions"
                     checked={profileData.medicalConditions}
-                    onCheckedChange={(checked) => 
-                      setProfileData({...profileData, medicalConditions: checked as boolean})}
+                    onCheckedChange={(checked) =>
+                      setProfileData({ ...profileData, medicalConditions: checked as boolean })}
                   />
                   <Label htmlFor="medicalConditions">
                     I have chronic medical conditions (diabetes, heart disease, etc.)
@@ -403,8 +408,8 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                   <Checkbox
                     id="medications"
                     checked={profileData.medications}
-                    onCheckedChange={(checked) => 
-                      setProfileData({...profileData, medications: checked as boolean})}
+                    onCheckedChange={(checked) =>
+                      setProfileData({ ...profileData, medications: checked as boolean })}
                   />
                   <Label htmlFor="medications">
                     I am currently taking medications
@@ -415,8 +420,8 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                   <Checkbox
                     id="recentIllness"
                     checked={profileData.recentIllness}
-                    onCheckedChange={(checked) => 
-                      setProfileData({...profileData, recentIllness: checked as boolean})}
+                    onCheckedChange={(checked) =>
+                      setProfileData({ ...profileData, recentIllness: checked as boolean })}
                   />
                   <Label htmlFor="recentIllness">
                     I have been ill in the past 2 weeks
@@ -435,10 +440,10 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={checkEligibility}
-                  disabled={!profileData.age || !profileData.fullName || !profileData.bloodGroup || !profileData.gender || eligibilityStatus === 'checking'}
+                  onClick={() => setShowEligibilityTest(true)}
+                  disabled={!profileData.age || !profileData.fullName || !profileData.bloodGroup || !profileData.gender}
                 >
-                  {eligibilityStatus === 'checking' ? 'Checking...' : 'Check Eligibility'}
+                  Take Eligibility Test
                 </Button>
               </div>
 
@@ -462,8 +467,8 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
               <Checkbox
                 id="consent"
                 checked={profileData.consent}
-                onCheckedChange={(checked) => 
-                  setProfileData({...profileData, consent: checked as boolean})}
+                onCheckedChange={(checked) =>
+                  setProfileData({ ...profileData, consent: checked as boolean })}
               />
               <Label htmlFor="consent" className="text-sm">
                 I agree to the terms and conditions and consent to be contacted for blood donation requests *
@@ -486,15 +491,13 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
             <div className="flex items-center justify-center space-x-4 mt-4">
               {[1, 2, 3].map((step) => (
                 <div key={step} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    step <= currentStep ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'
-                  }`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step <= currentStep ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'
+                    }`}>
                     {step}
                   </div>
                   {step < 3 && (
-                    <div className={`w-8 h-0.5 mx-2 ${
-                      step < currentStep ? 'bg-primary' : 'bg-gray-200'
-                    }`} />
+                    <div className={`w-8 h-0.5 mx-2 ${step < currentStep ? 'bg-primary' : 'bg-gray-200'
+                      }`} />
                   )}
                 </div>
               ))}
@@ -502,7 +505,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
           </CardHeader>
           <CardContent>
             {renderStep()}
-            
+
             <div className="flex justify-between mt-8">
               <div>
                 {currentStep > 1 && (
@@ -511,18 +514,18 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
                   </Button>
                 )}
               </div>
-              
+
               <div className="flex space-x-2">
                 <Button variant="ghost" onClick={onSkip}>
                   Skip for Now
                 </Button>
-                
+
                 {currentStep < 3 ? (
                   <Button onClick={nextStep} disabled={!profileData.fullName || !profileData.age || !profileData.gender || !profileData.bloodGroup}>
                     Next
                   </Button>
                 ) : (
-                  <Button 
+                  <Button
                     onClick={handleSubmit}
                     disabled={isSubmitting || !profileData.consent}
                     className="bg-primary hover:bg-primary/90"
@@ -535,6 +538,23 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete, onSkip }) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Eligibility Test Modal */}
+      {showEligibilityTest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <EligibilityTest
+              onComplete={handleEligibilityTestComplete}
+              onSkip={handleEligibilityTestSkip}
+              userData={{
+                age: profileData.age,
+                gender: profileData.gender,
+                bloodGroup: profileData.bloodGroup
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

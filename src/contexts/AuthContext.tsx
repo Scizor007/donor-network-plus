@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Auth state change:', event, session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         await fetchProfile(session.user.id);
       } else {
@@ -108,9 +108,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .insert({
           user_id: userId,
           email: userData.user.email!,
-          full_name: userData.user.user_metadata?.full_name || 
-                    userData.user.user_metadata?.name || 
-                    userData.user.email?.split('@')[0] || 'User',
+          full_name: userData.user.user_metadata?.full_name ||
+            userData.user.user_metadata?.name ||
+            userData.user.email?.split('@')[0] || 'User',
+          user_type: 'user', // Default to user, will be updated to donor after registration
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -141,7 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-      
+
       if (error) {
         console.error('Error signing in with Google:', error);
         throw error;

@@ -20,6 +20,7 @@ export const UserProfile: React.FC = () => {
   console.log('UserProfile - User:', user);
   console.log('UserProfile - Profile:', profile);
   console.log('UserProfile - Loading:', loading);
+  console.log('UserProfile - Loading Timeout:', loadingTimeout);
 
   // Timeout fallback for loading state
   React.useEffect(() => {
@@ -117,6 +118,40 @@ export const UserProfile: React.FC = () => {
     );
   }
 
+  if (loading && !loadingTimeout) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <div className="flex items-center justify-center space-x-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <CardTitle>Loading Profile...</CardTitle>
+          </div>
+          <CardDescription>
+            Please wait while we load your profile information.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (loadingTimeout) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>Loading Timeout</CardTitle>
+          <CardDescription>
+            There seems to be an issue loading your profile. Please try refreshing the page or contact support.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => window.location.reload()} className="w-full">
+            Refresh Page
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!user || !profile) {
     return (
       <Card className="w-full max-w-2xl mx-auto">
@@ -126,6 +161,13 @@ export const UserProfile: React.FC = () => {
             Please complete your profile setup to continue.
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <Link to="/register">
+            <Button className="w-full">
+              Complete Profile Setup
+            </Button>
+          </Link>
+        </CardContent>
       </Card>
     );
   }
@@ -298,7 +340,7 @@ export const UserProfile: React.FC = () => {
             <h3 className="text-lg font-semibold mb-2">What would you like to do next?</h3>
             <p className="text-gray-600 text-sm">Complete your donor journey and help save lives</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link to="/" className="block">
               <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2">
@@ -309,7 +351,7 @@ export const UserProfile: React.FC = () => {
                 </div>
               </Button>
             </Link>
-            
+
             <Link to="/find-donor" className="block">
               <Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2">
                 <Heart className="h-6 w-6 text-red-500" />
@@ -319,7 +361,7 @@ export const UserProfile: React.FC = () => {
                 </div>
               </Button>
             </Link>
-            
+
             <Link to="/register" className="block">
               <Button className="w-full h-auto p-4 flex flex-col items-center space-y-2 bg-primary hover:bg-primary/90">
                 <ArrowRight className="h-6 w-6" />

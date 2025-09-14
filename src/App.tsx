@@ -21,6 +21,7 @@ import CampDetails from "./pages/CampDetails";
 import RequestBlood from "./pages/RequestBlood";
 import Certificate from "./pages/Certificate";
 import AdminDashboard from "./pages/AdminDashboard";
+import DatabaseTest from "./pages/DatabaseTest";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/request-blood" element={<RequestBlood />} />
             <Route path="/certificate" element={<Certificate />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/database-test" element={<DatabaseTest />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
