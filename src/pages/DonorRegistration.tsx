@@ -36,6 +36,7 @@ const DonorRegistration = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [eligibilityStatus, setEligibilityStatus] = useState<'idle' | 'checking' | 'eligible' | 'ineligible' | null>(null);
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -57,15 +58,53 @@ const DonorRegistration = () => {
   };
 
   const checkEligibility = () => {
-    // Navigate to step 2 for eligibility form
-    setCurrentStep(2);
-  };
+    // Basic validations before checking
+    if (!formData.fullName || !formData.age || !formData.gender || !formData.bloodGroup) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in your name, age, gender, and blood group first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setEligibilityStatus('checking');
+
+    setTimeout(() => {
+      const ageNumber = parseInt(formData.age);
+      if (isNaN(ageNumber) || ageNumber < 18 || ageNumber > 65) {
+        setEligibilityStatus('ineligible');
         toast({
-          title: "Recent Donation",
-          description: "You must wait at least 3 months between donations.",
+          title: "Age Restriction",
+          description: "Donors must be between 18 and 65 years old.",
           variant: "destructive"
         });
         return;
+      }
+
+      if (formData.medicalConditions || formData.medications || formData.recentIllness) {
+        setEligibilityStatus('ineligible');
+        toast({
+          title: "Health Screening",
+          description: "Based on your medical information, you're currently not eligible to donate.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (formData.lastDonation) {
+        const lastDate = new Date(formData.lastDonation);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (!isNaN(diffDays) && diffDays < 90) {
+          setEligibilityStatus('ineligible');
+          toast({
+            title: "Recent Donation",
+            description: "You must wait at least 3 months between donations.",
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
       setEligibilityStatus('eligible');
