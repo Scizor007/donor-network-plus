@@ -14,47 +14,205 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_logs: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          new_values: Json | null
+          old_values: Json | null
+          record_id: string | null
+          table_name: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       blood_banks: {
         Row: {
+          accreditation: string[] | null
           address: string
+          capacity_daily: number | null
+          city: string | null
           created_at: string
+          district: string | null
           email: string | null
           id: string
           is_active: boolean | null
+          last_inspection_date: string | null
           latitude: number | null
+          license_number: string | null
           longitude: number | null
           name: string
+          next_inspection_date: string | null
           operating_hours: string | null
           phone: string
+          services: string[] | null
+          state: string | null
+          status: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
+          accreditation?: string[] | null
           address: string
+          capacity_daily?: number | null
+          city?: string | null
           created_at?: string
+          district?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
+          last_inspection_date?: string | null
           latitude?: number | null
+          license_number?: string | null
           longitude?: number | null
           name: string
+          next_inspection_date?: string | null
           operating_hours?: string | null
           phone: string
+          services?: string[] | null
+          state?: string | null
+          status?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
+          accreditation?: string[] | null
           address?: string
+          capacity_daily?: number | null
+          city?: string | null
           created_at?: string
+          district?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
+          last_inspection_date?: string | null
           latitude?: number | null
+          license_number?: string | null
           longitude?: number | null
           name?: string
+          next_inspection_date?: string | null
           operating_hours?: string | null
           phone?: string
+          services?: string[] | null
+          state?: string | null
+          status?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
+      }
+      blood_donation_camps: {
+        Row: {
+          actual_units: number | null
+          address: string
+          city: string
+          contact_email: string | null
+          contact_phone: string
+          created_at: string | null
+          current_participants: number | null
+          description: string | null
+          end_date: string
+          expected_units: number | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          max_participants: number | null
+          name: string
+          organizer_id: string | null
+          organizer_name: string
+          registration_required: boolean | null
+          start_date: string
+          state: string
+          status: string | null
+          updated_at: string | null
+          venue: string
+        }
+        Insert: {
+          actual_units?: number | null
+          address: string
+          city: string
+          contact_email?: string | null
+          contact_phone: string
+          created_at?: string | null
+          current_participants?: number | null
+          description?: string | null
+          end_date: string
+          expected_units?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          max_participants?: number | null
+          name: string
+          organizer_id?: string | null
+          organizer_name: string
+          registration_required?: boolean | null
+          start_date: string
+          state: string
+          status?: string | null
+          updated_at?: string | null
+          venue: string
+        }
+        Update: {
+          actual_units?: number | null
+          address?: string
+          city?: string
+          contact_email?: string | null
+          contact_phone?: string
+          created_at?: string | null
+          current_participants?: number | null
+          description?: string | null
+          end_date?: string
+          expected_units?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          max_participants?: number | null
+          name?: string
+          organizer_id?: string | null
+          organizer_name?: string
+          registration_required?: boolean | null
+          start_date?: string
+          state?: string
+          status?: string | null
+          updated_at?: string | null
+          venue?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blood_donation_camps_organizer_id_fkey"
+            columns: ["organizer_id"]
+            isOneToOne: false
+            referencedRelation: "blood_banks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       blood_inventory: {
         Row: {
@@ -142,6 +300,155 @@ export type Database = {
         }
         Relationships: []
       }
+      camp_registrations: {
+        Row: {
+          blood_group: string | null
+          camp_id: string
+          created_at: string | null
+          donor_email: string
+          donor_name: string
+          donor_phone: string
+          id: string
+          notes: string | null
+          registration_status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          blood_group?: string | null
+          camp_id: string
+          created_at?: string | null
+          donor_email: string
+          donor_name: string
+          donor_phone: string
+          id?: string
+          notes?: string | null
+          registration_status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          blood_group?: string | null
+          camp_id?: string
+          created_at?: string | null
+          donor_email?: string
+          donor_name?: string
+          donor_phone?: string
+          id?: string
+          notes?: string | null
+          registration_status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "camp_registrations_camp_id_fkey"
+            columns: ["camp_id"]
+            isOneToOne: false
+            referencedRelation: "blood_donation_camps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      donation_records: {
+        Row: {
+          adverse_reactions: string[] | null
+          blood_bank_id: string | null
+          blood_group: string
+          blood_pressure_diastolic: number | null
+          blood_pressure_systolic: number | null
+          camp_id: string | null
+          collection_method: string | null
+          collection_time_minutes: number | null
+          component_type: string | null
+          created_at: string | null
+          donation_date: string
+          donor_id: string
+          height_cm: number | null
+          hemoglobin_level: number | null
+          id: string
+          notes: string | null
+          phlebotomist_id: string | null
+          phlebotomist_name: string | null
+          pulse_rate: number | null
+          status: string | null
+          temperature: number | null
+          test_results: Json | null
+          units_collected: number | null
+          updated_at: string | null
+          weight_kg: number | null
+        }
+        Insert: {
+          adverse_reactions?: string[] | null
+          blood_bank_id?: string | null
+          blood_group: string
+          blood_pressure_diastolic?: number | null
+          blood_pressure_systolic?: number | null
+          camp_id?: string | null
+          collection_method?: string | null
+          collection_time_minutes?: number | null
+          component_type?: string | null
+          created_at?: string | null
+          donation_date: string
+          donor_id: string
+          height_cm?: number | null
+          hemoglobin_level?: number | null
+          id?: string
+          notes?: string | null
+          phlebotomist_id?: string | null
+          phlebotomist_name?: string | null
+          pulse_rate?: number | null
+          status?: string | null
+          temperature?: number | null
+          test_results?: Json | null
+          units_collected?: number | null
+          updated_at?: string | null
+          weight_kg?: number | null
+        }
+        Update: {
+          adverse_reactions?: string[] | null
+          blood_bank_id?: string | null
+          blood_group?: string
+          blood_pressure_diastolic?: number | null
+          blood_pressure_systolic?: number | null
+          camp_id?: string | null
+          collection_method?: string | null
+          collection_time_minutes?: number | null
+          component_type?: string | null
+          created_at?: string | null
+          donation_date?: string
+          donor_id?: string
+          height_cm?: number | null
+          hemoglobin_level?: number | null
+          id?: string
+          notes?: string | null
+          phlebotomist_id?: string | null
+          phlebotomist_name?: string | null
+          pulse_rate?: number | null
+          status?: string | null
+          temperature?: number | null
+          test_results?: Json | null
+          units_collected?: number | null
+          updated_at?: string | null
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donation_records_blood_bank_id_fkey"
+            columns: ["blood_bank_id"]
+            isOneToOne: false
+            referencedRelation: "blood_banks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donation_records_camp_id_fkey"
+            columns: ["camp_id"]
+            isOneToOne: false
+            referencedRelation: "blood_donation_camps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       donation_requests: {
         Row: {
           blood_group: string
@@ -197,6 +504,231 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      donor_certificates: {
+        Row: {
+          achievement_level: string | null
+          blood_group: string | null
+          certificate_number: string
+          certificate_type: string | null
+          created_at: string | null
+          donor_name: string
+          expires_at: string | null
+          generated_at: string | null
+          id: string
+          is_active: boolean | null
+          pledge_date: string | null
+          total_donations: number | null
+          user_id: string
+        }
+        Insert: {
+          achievement_level?: string | null
+          blood_group?: string | null
+          certificate_number: string
+          certificate_type?: string | null
+          created_at?: string | null
+          donor_name: string
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          pledge_date?: string | null
+          total_donations?: number | null
+          user_id: string
+        }
+        Update: {
+          achievement_level?: string | null
+          blood_group?: string | null
+          certificate_number?: string
+          certificate_type?: string | null
+          created_at?: string | null
+          donor_name?: string
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          pledge_date?: string | null
+          total_donations?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      eligible_donors: {
+        Row: {
+          address: string
+          age: number
+          availability_notes: string | null
+          blood_group: string
+          blood_pressure_diastolic: number | null
+          blood_pressure_systolic: number | null
+          city: string
+          created_at: string | null
+          eligibility_notes: string | null
+          email: string
+          full_name: string
+          gender: string
+          has_medical_conditions: boolean | null
+          has_tattoos: boolean | null
+          height_cm: number | null
+          hemoglobin_level: number | null
+          id: string
+          is_available: boolean | null
+          is_eligible: boolean | null
+          is_verified: boolean | null
+          last_donation_date: string | null
+          last_eligibility_check: string | null
+          latitude: number | null
+          longitude: number | null
+          phone: string
+          pulse_rate: number | null
+          rbc_count: number | null
+          recent_illness: boolean | null
+          recent_surgery: boolean | null
+          taking_medications: boolean | null
+          total_donations: number | null
+          updated_at: string | null
+          user_id: string
+          verified_at: string | null
+          verified_by: string | null
+          weight_kg: number | null
+        }
+        Insert: {
+          address: string
+          age: number
+          availability_notes?: string | null
+          blood_group: string
+          blood_pressure_diastolic?: number | null
+          blood_pressure_systolic?: number | null
+          city: string
+          created_at?: string | null
+          eligibility_notes?: string | null
+          email: string
+          full_name: string
+          gender: string
+          has_medical_conditions?: boolean | null
+          has_tattoos?: boolean | null
+          height_cm?: number | null
+          hemoglobin_level?: number | null
+          id?: string
+          is_available?: boolean | null
+          is_eligible?: boolean | null
+          is_verified?: boolean | null
+          last_donation_date?: string | null
+          last_eligibility_check?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          phone: string
+          pulse_rate?: number | null
+          rbc_count?: number | null
+          recent_illness?: boolean | null
+          recent_surgery?: boolean | null
+          taking_medications?: boolean | null
+          total_donations?: number | null
+          updated_at?: string | null
+          user_id: string
+          verified_at?: string | null
+          verified_by?: string | null
+          weight_kg?: number | null
+        }
+        Update: {
+          address?: string
+          age?: number
+          availability_notes?: string | null
+          blood_group?: string
+          blood_pressure_diastolic?: number | null
+          blood_pressure_systolic?: number | null
+          city?: string
+          created_at?: string | null
+          eligibility_notes?: string | null
+          email?: string
+          full_name?: string
+          gender?: string
+          has_medical_conditions?: boolean | null
+          has_tattoos?: boolean | null
+          height_cm?: number | null
+          hemoglobin_level?: number | null
+          id?: string
+          is_available?: boolean | null
+          is_eligible?: boolean | null
+          is_verified?: boolean | null
+          last_donation_date?: string | null
+          last_eligibility_check?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          phone?: string
+          pulse_rate?: number | null
+          rbc_count?: number | null
+          recent_illness?: boolean | null
+          recent_surgery?: boolean | null
+          taking_medications?: boolean | null
+          total_donations?: number | null
+          updated_at?: string | null
+          user_id?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      emergency_locations: {
+        Row: {
+          address: string
+          city: string
+          created_at: string | null
+          email: string | null
+          emergency_contact: string | null
+          id: string
+          is_24_hours: boolean | null
+          is_active: boolean | null
+          latitude: number
+          longitude: number
+          name: string
+          operating_hours: string | null
+          phone: string
+          services: string[] | null
+          state: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          address: string
+          city: string
+          created_at?: string | null
+          email?: string | null
+          emergency_contact?: string | null
+          id?: string
+          is_24_hours?: boolean | null
+          is_active?: boolean | null
+          latitude: number
+          longitude: number
+          name: string
+          operating_hours?: string | null
+          phone: string
+          services?: string[] | null
+          state: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string
+          city?: string
+          created_at?: string | null
+          email?: string | null
+          emergency_contact?: string | null
+          id?: string
+          is_24_hours?: boolean | null
+          is_active?: boolean | null
+          latitude?: number
+          longitude?: number
+          name?: string
+          operating_hours?: string | null
+          phone?: string
+          services?: string[] | null
+          state?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       hospital_staff: {
         Row: {
@@ -358,7 +890,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_donor_eligibility: {
+        Args: { donor_id: string }
+        Returns: boolean
+      }
+      generate_certificate_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

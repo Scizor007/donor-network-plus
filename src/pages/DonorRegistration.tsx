@@ -5,16 +5,20 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Heart, CheckCircle, AlertCircle } from 'lucide-react';
+import { Heart, CheckCircle, AlertCircle, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Navigation from '@/components/Navigation';
+import { EligibilityForm } from '@/components/EligibilityForm';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { LocationService } from '@/services/locationService';
 
 const DonorRegistration = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isEligible, setIsEligible] = useState<boolean | null>(null);
+  const [eligibilityData, setEligibilityData] = useState<any>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     age: '',
@@ -33,52 +37,29 @@ const DonorRegistration = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [eligibilityStatus, setEligibilityStatus] = useState<'checking' | 'eligible' | 'ineligible' | null>(null);
-
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-  const checkEligibility = () => {
-    // Validate required fields first
-    if (!formData.age || !formData.fullName || !formData.bloodGroup || !formData.gender) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields before checking eligibility.",
-        variant: "destructive"
-      });
-      return;
+  const handleEligibilityCheck = (eligible: boolean, data: any) => {
+    setIsEligible(eligible);
+    setEligibilityData(data);
+    if (eligible) {
+      setCurrentStep(3);
     }
+  };
 
-    const age = parseInt(formData.age);
-    const lastDonationDate = formData.lastDonation ? new Date(formData.lastDonation) : null;
-    const monthsSinceLastDonation = lastDonationDate
-      ? (Date.now() - lastDonationDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
-      : 12; // Assume eligible if no previous donation
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
-    setEligibilityStatus('checking');
-
-    setTimeout(() => {
-      if (age < 18 || age > 65) {
-        setEligibilityStatus('ineligible');
-        toast({
-          title: "Age Not Eligible",
-          description: "You must be between 18 and 65 years old to donate blood.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (formData.medicalConditions || formData.medications || formData.recentIllness) {
-        setEligibilityStatus('ineligible');
-        toast({
-          title: "Medical Conditions",
-          description: "Please consult with our medical team about your eligibility.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (monthsSinceLastDonation < 3) {
-        setEligibilityStatus('ineligible');
+  const checkEligibility = () => {
+    // Navigate to step 2 for eligibility form
+    setCurrentStep(2);
+  };
         toast({
           title: "Recent Donation",
           description: "You must wait at least 3 months between donations.",

@@ -21,6 +21,7 @@ interface Donor {
   available: boolean;
   phone: string;
   coordinates: [number, number];
+  city?: string;
 }
 
 interface EmergencyLocation {
@@ -96,11 +97,11 @@ const FindDonor = () => {
   // Fetch real data from database
   const fetchRealData = async () => {
     try {
-      // Fetch donors from database
+      // Fetch eligible donors from new table
       const { data: donors, error: donorsError } = await supabase
-        .from('profiles')
+        .from('eligible_donors')
         .select('*')
-        .eq('user_type', 'donor')
+        .eq('is_eligible', true)
         .eq('is_available', true)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
@@ -114,9 +115,9 @@ const FindDonor = () => {
         id: donor.id,
         name: donor.full_name,
         bloodGroup: donor.blood_group,
-        location: donor.location || `${donor.city}, ${donor.address}`,
+        location: `${donor.city}, ${donor.address}`,
         distance: '0 km', // Will be calculated based on user location
-        lastDonation: donor.last_donation_date,
+        lastDonation: donor.last_donation_date || 'Never donated',
         verified: donor.is_verified || false,
         available: donor.is_available || false,
         phone: donor.phone || '',
@@ -127,49 +128,8 @@ const FindDonor = () => {
       setAllDonors(formattedDonors);
       setFilteredDonors(formattedDonors);
 
-      // Fetch emergency locations
-      const { data: locations, error: locationsError } = await supabase
-        .from('emergency_locations')
-        .select('*')
-        .eq('is_active', true);
-
-      if (!locationsError && locations) {
-        const formattedLocations: EmergencyLocation[] = locations.map(location => ({
-          id: location.id,
-          name: location.name,
-          type: location.type,
-          address: location.address,
-          phone: location.phone,
-          coordinates: [location.latitude, location.longitude]
-        }));
-        setEmergencyLocations(formattedLocations);
-      }
-
-      // Fetch blood camps
-      const { data: camps, error: campsError } = await supabase
-        .from('blood_donation_camps')
-        .select('*')
-        .eq('status', 'upcoming')
-        .gte('start_date', new Date().toISOString());
-
-      if (!campsError && camps) {
-        const formattedCamps: BloodCamp[] = camps.map(camp => ({
-          id: camp.id,
-          name: camp.name,
-          venue: camp.venue,
-          date: camp.start_date.split('T')[0],
-          time: new Date(camp.start_date).toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-          }),
-          organizer: camp.organizer_name,
-          expected_units: camp.expected_units,
-          contact_phone: camp.contact_phone,
-          coordinates: [camp.latitude, camp.longitude]
-        }));
-        setBloodCamps(formattedCamps);
-      }
+      // Add test emergency locations and blood camps
+      addTestData();
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -188,7 +148,8 @@ const FindDonor = () => {
         verified: true,
         available: true,
         phone: '+91-98765-43210',
-        coordinates: [17.4065, 78.4772]
+        coordinates: [17.4065, 78.4772],
+        city: 'Hyderabad'
       },
       {
         id: 'test-donor-2',
@@ -200,7 +161,8 @@ const FindDonor = () => {
         verified: true,
         available: true,
         phone: '+91-98765-43211',
-        coordinates: [19.1136, 72.8697]
+        coordinates: [19.1136, 72.8697],
+        city: 'Mumbai'
       },
       {
         id: 'test-donor-3',
@@ -212,7 +174,8 @@ const FindDonor = () => {
         verified: false,
         available: false,
         phone: '+91-98765-43212',
-        coordinates: [28.6315, 77.2167]
+        coordinates: [28.6315, 77.2167],
+        city: 'Delhi'
       },
       {
         id: 'test-donor-4',
@@ -224,7 +187,8 @@ const FindDonor = () => {
         verified: true,
         available: true,
         phone: '+91-98765-43213',
-        coordinates: [17.4339, 78.4010]
+        coordinates: [17.4339, 78.4010],
+        city: 'Hyderabad'
       },
       {
         id: 'test-donor-5',
@@ -236,7 +200,8 @@ const FindDonor = () => {
         verified: true,
         available: true,
         phone: '+91-98765-43214',
-        coordinates: [19.0596, 72.8295]
+        coordinates: [19.0596, 72.8295],
+        city: 'Mumbai'
       },
       {
         id: 'test-donor-6',
@@ -248,7 +213,8 @@ const FindDonor = () => {
         verified: false,
         available: true,
         phone: '+91-98765-43215',
-        coordinates: [28.6517, 77.1909]
+        coordinates: [28.6517, 77.1909],
+        city: 'Delhi'
       }
     ];
 
@@ -257,7 +223,7 @@ const FindDonor = () => {
       {
         id: 'test-emergency-1',
         name: 'Apollo Hospitals, Hyderabad',
-        type: 'hospital',
+        type: 'hospital' as const,
         address: 'Road No 72, Jubilee Hills, Hyderabad, Telangana',
         phone: '+91-40-4344-7777',
         coordinates: [17.4339, 78.4010],
@@ -267,7 +233,7 @@ const FindDonor = () => {
       {
         id: 'test-emergency-2',
         name: 'Kokilaben Dhirubhai Ambani Hospital, Mumbai',
-        type: 'hospital',
+        type: 'hospital' as const,
         address: 'Rao Saheb Achutrao Patwardhan Marg, Four Bungalows, Andheri West, Mumbai',
         phone: '+91-22-3099-9999',
         coordinates: [19.1136, 72.8697],
@@ -277,7 +243,7 @@ const FindDonor = () => {
       {
         id: 'test-emergency-3',
         name: 'AIIMS Delhi',
-        type: 'hospital',
+        type: 'hospital' as const,
         address: 'Ansari Nagar, New Delhi, Delhi',
         phone: '+91-11-2658-8500',
         coordinates: [28.6315, 77.2167],
@@ -287,7 +253,7 @@ const FindDonor = () => {
       {
         id: 'test-emergency-4',
         name: 'Red Cross Blood Bank, Hyderabad',
-        type: 'blood_bank',
+        type: 'blood_bank' as const,
         address: 'Red Cross Building, Red Hills, Hyderabad, Telangana',
         phone: '+91-40-2323-4567',
         coordinates: [17.4065, 78.4772],
@@ -297,7 +263,7 @@ const FindDonor = () => {
       {
         id: 'test-emergency-5',
         name: 'Mumbai Blood Bank',
-        type: 'blood_bank',
+        type: 'blood_bank' as const,
         address: 'Dr. E. Moses Road, Worli, Mumbai, Maharashtra',
         phone: '+91-22-2494-1234',
         coordinates: [19.0596, 72.8295],
@@ -307,7 +273,7 @@ const FindDonor = () => {
       {
         id: 'test-emergency-6',
         name: 'Safdarjung Hospital, Delhi',
-        type: 'hospital',
+        type: 'hospital' as const,
         address: 'Safdarjung Enclave, New Delhi, Delhi',
         phone: '+91-11-2616-5000',
         coordinates: [28.6517, 77.1909],
@@ -328,7 +294,7 @@ const FindDonor = () => {
         coordinates: [17.4478, 78.3564],
         start_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
         end_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000).toISOString(),
-        status: 'upcoming',
+        status: 'upcoming' as const,
         expected_units: 200,
         contact_phone: '+91-40-1234-5678',
         organizer_name: 'Red Cross Society, Hyderabad'
@@ -343,7 +309,7 @@ const FindDonor = () => {
         coordinates: [19.0596, 72.8295],
         start_date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
         end_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-        status: 'ongoing',
+        status: 'ongoing' as const,
         expected_units: 120,
         contact_phone: '+91-22-9876-5432',
         organizer_name: 'Mumbai Blood Bank'
@@ -358,7 +324,7 @@ const FindDonor = () => {
         coordinates: [28.6881, 77.2105],
         start_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
         end_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000).toISOString(),
-        status: 'upcoming',
+        status: 'upcoming' as const,
         expected_units: 300,
         contact_phone: '+91-11-2345-6789',
         organizer_name: 'Delhi University NSS'
@@ -373,7 +339,7 @@ const FindDonor = () => {
         coordinates: [17.4478, 78.3564],
         start_date: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
         end_date: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-        status: 'ongoing',
+        status: 'ongoing' as const,
         expected_units: 80,
         contact_phone: '+91-40-9876-1234',
         organizer_name: 'Tech Mahindra CSR'
@@ -391,9 +357,9 @@ const FindDonor = () => {
   const fetchDonors = async () => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('eligible_donors')
         .select('*')
-        .eq('user_type', 'donor')
+        .eq('is_eligible', true)
         .eq('is_available', true)
         .not('blood_group', 'is', null)
         .not('latitude', 'is', null)
@@ -401,22 +367,23 @@ const FindDonor = () => {
 
       if (error) throw error;
 
-      const donors: Donor[] = data.map(profile => ({
-        id: profile.id,
-        name: profile.full_name,
-        bloodGroup: profile.blood_group,
-        location: profile.location || `${profile.city || 'Unknown'}`,
+      const donors: Donor[] = data.map(donor => ({
+        id: donor.id,
+        name: donor.full_name,
+        bloodGroup: donor.blood_group,
+        location: `${donor.city || 'Unknown'}`,
         distance: '0 km', // You can calculate this based on user location
-        lastDonation: profile.last_donation_date
-          ? formatLastDonation(profile.last_donation_date)
+        lastDonation: donor.last_donation_date
+          ? formatLastDonation(donor.last_donation_date)
           : 'Never donated',
-        verified: profile.is_verified,
-        available: profile.is_available,
-        phone: profile.phone || '',
+        verified: donor.is_verified,
+        available: donor.is_available,
+        phone: donor.phone || '',
         coordinates: [
-          profile.latitude || 28.6139,
-          profile.longitude || 77.2090
-        ] as [number, number]
+          donor.latitude || 28.6139,
+          donor.longitude || 77.2090
+        ] as [number, number],
+        city: donor.city
       }));
 
       console.log('Fetched donors from database:', donors);
@@ -486,64 +453,42 @@ const FindDonor = () => {
     setFilteredDonors(filtered);
   };
 
-  // Fetch emergency locations from database
-  const fetchEmergencyLocations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('emergency_locations')
-        .select('*')
-        .eq('is_active', true);
+  // Use test data for emergency locations and blood camps
+  const addTestEmergencyAndCamps = () => {
+    // Add test emergency locations and blood camps since database tables don't exist yet
+    const testEmergencyLocations: EmergencyLocation[] = [
+      {
+        id: 'test-emergency-1',
+        name: 'Apollo Hospitals, Hyderabad',
+        type: 'hospital' as const,
+        address: 'Road No 72, Jubilee Hills, Hyderabad, Telangana',
+        phone: '+91-40-4344-7777',
+        coordinates: [17.4339, 78.4010],
+        isOpen24h: true,
+        services: ['Emergency', 'Trauma', 'Blood Bank', 'ICU']
+      }
+    ];
 
-      if (error) throw error;
+    const testBloodCamps: BloodCamp[] = [
+      {
+        id: 'test-camp-1',
+        name: 'Hyderabad Blood Donation Drive',
+        venue: 'HITEC City Convention Centre',
+        address: 'HITEC City, Madhapur, Hyderabad, Telangana',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        coordinates: [17.4478, 78.3564],
+        start_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+        end_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000).toISOString(),
+        status: 'upcoming' as const,
+        expected_units: 200,
+        contact_phone: '+91-40-1234-5678',
+        organizer_name: 'Red Cross Society, Hyderabad'
+      }
+    ];
 
-      const locations: EmergencyLocation[] = data.map(loc => ({
-        id: loc.id,
-        name: loc.name,
-        type: loc.type,
-        address: loc.address,
-        phone: loc.phone,
-        coordinates: [loc.latitude, loc.longitude] as [number, number],
-        isOpen24h: loc.is_24_hours,
-        services: loc.services
-      }));
-
-      setEmergencyLocations(locations);
-    } catch (error) {
-      console.error('Error fetching emergency locations:', error);
-    }
-  };
-
-  // Fetch blood camps from database
-  const fetchBloodCamps = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('blood_donation_camps')
-        .select('*')
-        .in('status', ['upcoming', 'ongoing'])
-        .order('start_date', { ascending: true });
-
-      if (error) throw error;
-
-      const camps: BloodCamp[] = data.map(camp => ({
-        id: camp.id,
-        name: camp.name,
-        venue: camp.venue,
-        address: camp.address,
-        city: camp.city,
-        state: camp.state,
-        coordinates: [camp.latitude, camp.longitude] as [number, number],
-        start_date: camp.start_date,
-        end_date: camp.end_date,
-        status: camp.status,
-        expected_units: camp.expected_units,
-        contact_phone: camp.contact_phone,
-        organizer_name: camp.organizer_name
-      }));
-
-      setBloodCamps(camps);
-    } catch (error) {
-      console.error('Error fetching blood camps:', error);
-    }
+    setEmergencyLocations(prev => [...prev, ...testEmergencyLocations]);
+    setBloodCamps(prev => [...prev, ...testBloodCamps]);
   };
 
   // Real-time search effect
@@ -554,18 +499,17 @@ const FindDonor = () => {
   // Load data on component mount and set up real-time updates
   useEffect(() => {
     fetchDonors();
-    fetchEmergencyLocations();
-    fetchBloodCamps();
+    addTestEmergencyAndCamps();
 
     // Set up real-time subscription for new donors
     const channel = supabase
-      .channel('profiles_changes')
+      .channel('eligible_donors_changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'profiles'
+          table: 'eligible_donors'
         },
         () => {
           fetchDonors(); // Refresh donors when changes occur

@@ -339,7 +339,9 @@ const Map: React.FC<MapProps> = ({
       }
     `;
     document.head.appendChild(style);
-    return () => document.head.removeChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   return <div ref={containerRef} className="w-full h-96 rounded-lg overflow-hidden shadow-lg" />;

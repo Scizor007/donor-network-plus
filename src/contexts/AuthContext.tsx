@@ -88,7 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         setProfile(data);
         // Check if profile setup is complete (has all required fields)
-        const isComplete = data.full_name && data.age && data.gender && data.blood_group && data.phone && data.address && data.city;
+        const isComplete = !!(data.full_name && data.age && data.gender && data.blood_group && data.phone && data.address && data.city);
         setProfileSetupComplete(isComplete);
         setLoading(false);
       }
@@ -191,7 +191,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       setProfile(data);
       // Check if profile setup is complete after update
-      const isComplete = data.full_name && data.age && data.gender && data.blood_group && data.phone && data.address && data.city;
+      const isComplete = !!(data.full_name && data.age && data.gender && data.blood_group && data.phone && data.address && data.city);
       setProfileSetupComplete(isComplete);
     } catch (error) {
       console.error('Error updating profile:', error);
