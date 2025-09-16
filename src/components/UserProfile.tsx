@@ -39,6 +39,8 @@ export const UserProfile: React.FC = () => {
     email: profile?.email || '',
     phone: profile?.phone || '',
     location: profile?.location || '',
+    address: (profile as any)?.address || '',
+    city: (profile as any)?.city || '',
     age: profile?.age || '',
     gender: profile?.gender || '',
     blood_group: profile?.blood_group || '',
@@ -59,6 +61,8 @@ export const UserProfile: React.FC = () => {
         email: formData.email,
         phone: formData.phone,
         location: formData.location,
+        address: (formData as any).address || null,
+        city: (formData as any).city || null,
         age: formData.age ? Number(formData.age) : null,
         gender: formData.gender || null,
         blood_group: formData.blood_group || null,
@@ -78,6 +82,8 @@ export const UserProfile: React.FC = () => {
       email: profile?.email || '',
       phone: profile?.phone || '',
       location: profile?.location || '',
+      address: (profile as any)?.address || '',
+      city: (profile as any)?.city || '',
       age: profile?.age || '',
       gender: profile?.gender || '',
       blood_group: profile?.blood_group || '',
@@ -246,6 +252,40 @@ export const UserProfile: React.FC = () => {
               <div className="flex items-center gap-2 p-2 border rounded-md">
                 <MapPin className="h-4 w-4 text-gray-500" />
                 <span>{profile.location || 'Not provided'}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Address</Label>
+            {isEditing ? (
+              <Input
+                id="address"
+                value={(formData as any).address}
+                onChange={(e) => handleInputChange('address', e.target.value)}
+                placeholder="Enter your address"
+              />
+            ) : (
+              <div className="flex items-center gap-2 p-2 border rounded-md">
+                <Home className="h-4 w-4 text-gray-500" />
+                <span>{(profile as any).address || 'Not provided'}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="city">City</Label>
+            {isEditing ? (
+              <Input
+                id="city"
+                value={(formData as any).city}
+                onChange={(e) => handleInputChange('city', e.target.value)}
+                placeholder="Enter your city"
+              />
+            ) : (
+              <div className="flex items-center gap-2 p-2 border rounded-md">
+                <MapPin className="h-4 w-4 text-gray-500" />
+                <span>{(profile as any).city || 'Not provided'}</span>
               </div>
             )}
           </div>

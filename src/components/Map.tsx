@@ -136,7 +136,7 @@ const Map: React.FC<MapProps> = ({
       userMarker.addTo(layer);
     }
 
-    // Donor markers (enhanced with better styling)
+    // Donor markers (minimal popup with essential info)
     donors.forEach((donor) => {
       const marker = L.marker(donor.coordinates, {
         title: `${donor.name} (${donor.bloodGroup})`,
@@ -169,17 +169,12 @@ const Map: React.FC<MapProps> = ({
       });
       const html = `
         <div style="min-width:200px">
-          <h3 style="margin:0;font-weight:600;font-size:0.9rem">${donor.name}</h3>
-          <p style="margin:4px 0;color:#555;font-size:0.75rem">${donor.location}</p>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0">
-            <span style="padding:2px 6px;border-radius:6px;background:${donor.available ? '#16a34a' : '#6b7280'};color:white;font-size:0.7rem">${donor.bloodGroup}</span>
-            <span style="font-size:0.7rem;color:${donor.available ? '#16a34a' : '#6b7280'}">${
-              donor.available ? 'Available' : 'Unavailable'
-            }</span>
+          <h3 style="margin:0;font-weight:600;font-size:0.95rem">${donor.name}</h3>
+          <div style="display:flex;align-items:center;gap:8px;margin:6px 0">
+            <span style="padding:2px 6px;border-radius:6px;background:#ef4444;color:white;font-size:0.75rem;font-weight:600">${donor.bloodGroup}</span>
+            ${donor.verified ? '<span style="color:#16a34a;font-size:0.7rem">✓ Verified</span>' : ''}
           </div>
-          <p style="margin:0;color:#555;font-size:0.75rem">${donor.distance} away</p>
-          <p style="margin:0;color:#555;font-size:0.75rem">Last donation: ${donor.lastDonation}</p>
-          ${donor.verified ? '<p style="margin:4px 0;color:#16a34a;font-size:0.7rem">✓ Verified Donor</p>' : ''}
+          ${donor.phone ? `<p style=\"margin:0;color:#555;font-size:0.8rem\">📞 ${donor.phone}</p>` : ''}
         </div>
       `;
       marker.bindPopup(html);

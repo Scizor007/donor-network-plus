@@ -32,6 +32,15 @@ const DonorRegistration = () => {
     medicalConditions: false,
     medications: false,
     recentIllness: false,
+    recentSurgery: false,
+    hasTattoos: false,
+    hemoglobin: '',
+    rbcCount: '',
+    systolicBP: '',
+    diastolicBP: '',
+    weightKg: '',
+    heightCm: '',
+    pulseRate: '',
     consent: false
   });
 
@@ -68,6 +77,19 @@ const DonorRegistration = () => {
       return;
     }
 
+    // Check if medical fields are filled for detailed eligibility check
+    const hasMedicalData = formData.weightKg && formData.hemoglobin && formData.rbcCount && 
+                          formData.systolicBP && formData.diastolicBP && formData.pulseRate;
+
+    if (!hasMedicalData) {
+      toast({
+        title: "Medical Information Required",
+        description: "Please fill in all medical fields (weight, hemoglobin, RBC, BP, pulse) for eligibility check.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setEligibilityStatus('checking');
 
     setTimeout(() => {
@@ -82,11 +104,90 @@ const DonorRegistration = () => {
         return;
       }
 
-      if (formData.medicalConditions || formData.medications || formData.recentIllness) {
+      // Numeric health metrics parsing
+      const hemoglobin = parseFloat(formData.hemoglobin || '0');
+      const rbc = parseFloat(formData.rbcCount || '0');
+      const systolic = parseInt(formData.systolicBP || '0');
+      const diastolic = parseInt(formData.diastolicBP || '0');
+      const weight = parseFloat(formData.weightKg || '0');
+      const pulse = parseInt(formData.pulseRate || '0');
+
+      // Weight check: minimum 50kg
+      if (isNaN(weight) || weight < 50) {
+        setEligibilityStatus('ineligible');
+        toast({
+          title: "Weight Requirement",
+          description: "Minimum weight to donate is 50 kg.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Hemoglobin: >= 12.5 g/dL
+      if (isNaN(hemoglobin) || hemoglobin < 12.5) {
+        setEligibilityStatus('ineligible');
+        toast({
+          title: "Hemoglobin Too Low",
+          description: "Hemoglobin must be at least 12.5 g/dL.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // RBC count range by gender (approximate ranges)
+      const isMale = formData.gender === 'male';
+      const isFemale = formData.gender === 'female';
+      if (isNaN(rbc) || (
+        (isMale && (rbc < 4.5 || rbc > 5.9)) ||
+        (isFemale && (rbc < 4.1 || rbc > 5.5))
+      )) {
+        setEligibilityStatus('ineligible');
+        toast({
+          title: "RBC Count Outside Range",
+          description: isMale ? "Acceptable RBC for males: 4.5 - 5.9 million/µL" : "Acceptable RBC for females: 4.1 - 5.5 million/µL",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Blood pressure check: systolic 100-180, diastolic 60-100
+      if (isNaN(systolic) || isNaN(diastolic) || systolic < 100 || systolic > 180 || diastolic < 60 || diastolic > 100) {
+        setEligibilityStatus('ineligible');
+        toast({
+          title: "Blood Pressure Out of Range",
+          description: "BP should be between 100-180 / 60-100 mmHg.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Pulse rate: 50-100 bpm
+      if (isNaN(pulse) || pulse < 50 || pulse > 100) {
+        setEligibilityStatus('ineligible');
+        toast({
+          title: "Pulse Rate Out of Range",
+          description: "Pulse should be between 50 and 100 bpm.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (formData.medicalConditions || formData.medications || formData.recentIllness || formData.recentSurgery) {
         setEligibilityStatus('ineligible');
         toast({
           title: "Health Screening",
           description: "Based on your medical information, you're currently not eligible to donate.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Fresh tattoo/piercing deferral: typically 3-6 months; mark ineligible if indicated
+      if (formData.hasTattoos) {
+        setEligibilityStatus('ineligible');
+        toast({
+          title: "Recent Tattoo/Piercing",
+          description: "Please wait at least 3 months after a tattoo or piercing.",
           variant: "destructive"
         });
         return;
@@ -157,11 +258,13 @@ const DonorRegistration = () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError || !user) {
+        console.error('User authentication error:', userError);
         toast({
           title: "Authentication Required",
           description: "Please sign in to register as a donor.",
           variant: "destructive"
         });
+        setIsSubmitting(false);
         return;
       }
 
@@ -255,7 +358,59 @@ const DonorRegistration = () => {
 
       if (result.error) {
         console.error('Database operation error:', result.error);
-        throw result.error;
+        toast({
+          title: "Database Error",
+          description: `Failed to save profile: ${result.error.message}`,
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Upsert into eligible_donors table
+      const upsertPayload = {
+        user_id: user.id,
+        full_name: formData.fullName,
+        blood_group: formData.bloodGroup,
+        phone: formData.phone,
+        email: user.email || formData.email,
+        age: parseInt(formData.age),
+        gender: formData.gender,
+        city: formData.city,
+        address: formData.address,
+        latitude,
+        longitude,
+        hemoglobin_level: formData.hemoglobin ? parseFloat(formData.hemoglobin) : null,
+        rbc_count: formData.rbcCount ? parseFloat(formData.rbcCount) : null,
+        blood_pressure_systolic: formData.systolicBP ? parseInt(formData.systolicBP) : null,
+        blood_pressure_diastolic: formData.diastolicBP ? parseInt(formData.diastolicBP) : null,
+        weight_kg: formData.weightKg ? parseFloat(formData.weightKg) : null,
+        height_cm: formData.heightCm ? parseInt(formData.heightCm) : null,
+        pulse_rate: formData.pulseRate ? parseInt(formData.pulseRate) : null,
+        has_medical_conditions: formData.medicalConditions,
+        taking_medications: formData.medications,
+        recent_illness: formData.recentIllness,
+        recent_surgery: formData.recentSurgery,
+        has_tattoos: formData.hasTattoos,
+        is_eligible: eligibilityStatus === 'eligible',
+        is_verified: eligibilityStatus === 'eligible',
+        is_available: true,
+        last_donation_date: formData.lastDonation || null,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: eligibleError } = await supabase
+        .from('eligible_donors')
+        .upsert(upsertPayload, { onConflict: 'user_id' });
+
+      if (eligibleError) {
+        console.error('Eligible donors upsert error:', eligibleError);
+        toast({
+          title: "Warning",
+          description: "Profile saved but eligible donor data could not be updated. You may need to re-register.",
+          variant: "destructive"
+        });
+        // Continue with success flow but warn user
       }
 
       console.log('Profile updated successfully');
@@ -278,6 +433,15 @@ const DonorRegistration = () => {
         medicalConditions: false,
         medications: false,
         recentIllness: false,
+        recentSurgery: false,
+        hasTattoos: false,
+        hemoglobin: '',
+        rbcCount: '',
+        systolicBP: '',
+        diastolicBP: '',
+        weightKg: '',
+        heightCm: '',
+        pulseRate: '',
         consent: false
       });
       setEligibilityStatus(null);
@@ -485,6 +649,72 @@ const DonorRegistration = () => {
                   />
                 </div>
 
+                {/* Vitals & Lab Values */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="weightKg">Weight (kg) *</Label>
+                    <Input
+                      id="weightKg"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={formData.weightKg}
+                      onChange={(e) => setFormData({ ...formData, weightKg: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="hemoglobin">Hemoglobin (g/dL) *</Label>
+                    <Input
+                      id="hemoglobin"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={formData.hemoglobin}
+                      onChange={(e) => setFormData({ ...formData, hemoglobin: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="rbcCount">RBC Count (million/µL) *</Label>
+                    <Input
+                      id="rbcCount"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={formData.rbcCount}
+                      onChange={(e) => setFormData({ ...formData, rbcCount: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pulseRate">Pulse Rate (bpm) *</Label>
+                    <Input
+                      id="pulseRate"
+                      type="number"
+                      min="0"
+                      value={formData.pulseRate}
+                      onChange={(e) => setFormData({ ...formData, pulseRate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="systolicBP">Systolic BP (mmHg) *</Label>
+                    <Input
+                      id="systolicBP"
+                      type="number"
+                      min="0"
+                      value={formData.systolicBP}
+                      onChange={(e) => setFormData({ ...formData, systolicBP: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="diastolicBP">Diastolic BP (mmHg) *</Label>
+                    <Input
+                      id="diastolicBP"
+                      type="number"
+                      min="0"
+                      value={formData.diastolicBP}
+                      onChange={(e) => setFormData({ ...formData, diastolicBP: e.target.value })}
+                    />
+                  </div>
+                </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -520,6 +750,28 @@ const DonorRegistration = () => {
                     />
                     <Label htmlFor="recentIllness">
                       I have been ill in the past 2 weeks
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="recentSurgery"
+                      checked={formData.recentSurgery}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, recentSurgery: checked as boolean })}
+                    />
+                    <Label htmlFor="recentSurgery">
+                      I underwent surgery in the last 6 months
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="hasTattoos"
+                      checked={formData.hasTattoos}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, hasTattoos: checked as boolean })}
+                    />
+                    <Label htmlFor="hasTattoos">
+                      I had a tattoo/piercing in the last 3 months
                     </Label>
                   </div>
                 </div>

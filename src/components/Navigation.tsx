@@ -23,6 +23,8 @@ const Navigation = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
+      // Redirect to home after sign out
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
     }
