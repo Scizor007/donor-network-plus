@@ -421,6 +421,7 @@ const DonorRegistration = () => {
 
       // If eligible, also add to eligible_donors table
       if (eligibilityStatus === 'eligible') {
+        console.log('Adding to eligible donors table...');
         const eligiblePayload = {
           user_id: user.id,
           full_name: formData.fullName,
@@ -457,11 +458,17 @@ const DonorRegistration = () => {
 
         if (eligibleError) {
           console.error('Eligible donors upsert error:', eligibleError);
-          // Don't fail the registration for this error
+          toast({
+            title: "Warning",
+            description: "Registration saved but couldn't add to eligible donors list.",
+            variant: "destructive"
+          });
+        } else {
+          console.log('Successfully added to eligible donors');
         }
       }
 
-      console.log('Profile updated successfully');
+      console.log('Registration completed successfully!');
       toast({
         title: "Registration Successful! 🎉",
         description: "Thank you for joining our life-saving community. You'll receive a confirmation email shortly.",
