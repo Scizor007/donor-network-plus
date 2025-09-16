@@ -293,11 +293,17 @@ const DonorRegistration = () => {
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+      if (profileCheckError) {
         console.error('Error checking profile:', profileCheckError);
-        throw profileCheckError;
+        toast({
+          title: "Profile Check Error",
+          description: `Failed to check existing profile: ${profileCheckError.message}`,
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
       }
 
       let result;
