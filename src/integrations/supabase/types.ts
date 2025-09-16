@@ -553,6 +553,114 @@ export type Database = {
         }
         Relationships: []
       }
+      donor_registrations: {
+        Row: {
+          address: string
+          age: number
+          blood_group: string
+          blood_pressure_diastolic: number | null
+          blood_pressure_systolic: number | null
+          city: string
+          consent_given: boolean | null
+          created_at: string | null
+          eligibility_status: string | null
+          email: string
+          full_name: string
+          gender: string
+          has_medical_conditions: boolean | null
+          has_tattoos: boolean | null
+          height_cm: number | null
+          hemoglobin_level: number | null
+          id: string
+          last_donation_date: string | null
+          latitude: number | null
+          longitude: number | null
+          phone: string
+          processed_at: string | null
+          processed_by: string | null
+          pulse_rate: number | null
+          rbc_count: number | null
+          recent_illness: boolean | null
+          recent_surgery: boolean | null
+          registered_at: string | null
+          registration_status: string | null
+          taking_medications: boolean | null
+          updated_at: string | null
+          user_id: string
+          weight_kg: number | null
+        }
+        Insert: {
+          address: string
+          age: number
+          blood_group: string
+          blood_pressure_diastolic?: number | null
+          blood_pressure_systolic?: number | null
+          city: string
+          consent_given?: boolean | null
+          created_at?: string | null
+          eligibility_status?: string | null
+          email: string
+          full_name: string
+          gender: string
+          has_medical_conditions?: boolean | null
+          has_tattoos?: boolean | null
+          height_cm?: number | null
+          hemoglobin_level?: number | null
+          id?: string
+          last_donation_date?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          phone: string
+          processed_at?: string | null
+          processed_by?: string | null
+          pulse_rate?: number | null
+          rbc_count?: number | null
+          recent_illness?: boolean | null
+          recent_surgery?: boolean | null
+          registered_at?: string | null
+          registration_status?: string | null
+          taking_medications?: boolean | null
+          updated_at?: string | null
+          user_id: string
+          weight_kg?: number | null
+        }
+        Update: {
+          address?: string
+          age?: number
+          blood_group?: string
+          blood_pressure_diastolic?: number | null
+          blood_pressure_systolic?: number | null
+          city?: string
+          consent_given?: boolean | null
+          created_at?: string | null
+          eligibility_status?: string | null
+          email?: string
+          full_name?: string
+          gender?: string
+          has_medical_conditions?: boolean | null
+          has_tattoos?: boolean | null
+          height_cm?: number | null
+          hemoglobin_level?: number | null
+          id?: string
+          last_donation_date?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          phone?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          pulse_rate?: number | null
+          rbc_count?: number | null
+          recent_illness?: boolean | null
+          recent_surgery?: boolean | null
+          registered_at?: string | null
+          registration_status?: string | null
+          taking_medications?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
       eligible_donors: {
         Row: {
           address: string

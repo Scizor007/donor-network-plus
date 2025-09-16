@@ -67,20 +67,43 @@ export const DatabaseTest: React.FC = () => {
                 }
             }
 
-            // Test 5: Check other tables
-            const tables = ['blood_banks', 'emergency_locations', 'blood_donation_camps'];
-            for (const table of tables) {
-                addResult(`Testing ${table} table...`);
-                const { data, error } = await supabase
-                    .from(table)
-                    .select('*')
-                    .limit(1);
+            // Test 5: Check blood_banks table
+            addResult('Testing blood_banks table...');
+            const { data: bloodBanksData, error: bloodBanksError } = await supabase
+                .from('blood_banks')
+                .select('*')
+                .limit(1);
 
-                if (error) {
-                    addResult(`❌ ${table} error: ${error.message}`);
-                } else {
-                    addResult(`✅ ${table} accessible (${data?.length || 0} records found)`);
-                }
+            if (bloodBanksError) {
+                addResult(`❌ blood_banks error: ${bloodBanksError.message}`);
+            } else {
+                addResult(`✅ blood_banks accessible (${bloodBanksData?.length || 0} records found)`);
+            }
+
+            // Test 6: Check emergency_locations table
+            addResult('Testing emergency_locations table...');
+            const { data: emergencyData, error: emergencyError } = await supabase
+                .from('emergency_locations')
+                .select('*')
+                .limit(1);
+
+            if (emergencyError) {
+                addResult(`❌ emergency_locations error: ${emergencyError.message}`);
+            } else {
+                addResult(`✅ emergency_locations accessible (${emergencyData?.length || 0} records found)`);
+            }
+
+            // Test 7: Check blood_donation_camps table
+            addResult('Testing blood_donation_camps table...');
+            const { data: campsData, error: campsError } = await supabase
+                .from('blood_donation_camps')
+                .select('*')
+                .limit(1);
+
+            if (campsError) {
+                addResult(`❌ blood_donation_camps error: ${campsError.message}`);
+            } else {
+                addResult(`✅ blood_donation_camps accessible (${campsData?.length || 0} records found)`);
             }
 
             addResult('🎉 Database tests completed!');

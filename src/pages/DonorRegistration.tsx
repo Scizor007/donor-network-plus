@@ -367,50 +367,92 @@ const DonorRegistration = () => {
         return;
       }
 
-      // Upsert into eligible_donors table
-      const upsertPayload = {
+      // Insert into donor_registrations table
+      const registrationPayload = {
         user_id: user.id,
         full_name: formData.fullName,
+        age: parseInt(formData.age),
+        gender: formData.gender,
         blood_group: formData.bloodGroup,
         phone: formData.phone,
         email: user.email || formData.email,
-        age: parseInt(formData.age),
-        gender: formData.gender,
-        city: formData.city,
         address: formData.address,
-        latitude,
-        longitude,
+        city: formData.city,
+        weight_kg: formData.weightKg ? parseFloat(formData.weightKg) : null,
+        height_cm: formData.heightCm ? parseInt(formData.heightCm) : null,
         hemoglobin_level: formData.hemoglobin ? parseFloat(formData.hemoglobin) : null,
         rbc_count: formData.rbcCount ? parseFloat(formData.rbcCount) : null,
         blood_pressure_systolic: formData.systolicBP ? parseInt(formData.systolicBP) : null,
         blood_pressure_diastolic: formData.diastolicBP ? parseInt(formData.diastolicBP) : null,
-        weight_kg: formData.weightKg ? parseFloat(formData.weightKg) : null,
-        height_cm: formData.heightCm ? parseInt(formData.heightCm) : null,
         pulse_rate: formData.pulseRate ? parseInt(formData.pulseRate) : null,
         has_medical_conditions: formData.medicalConditions,
         taking_medications: formData.medications,
         recent_illness: formData.recentIllness,
         recent_surgery: formData.recentSurgery,
         has_tattoos: formData.hasTattoos,
-        is_eligible: eligibilityStatus === 'eligible',
-        is_verified: eligibilityStatus === 'eligible',
-        is_available: true,
         last_donation_date: formData.lastDonation || null,
-        updated_at: new Date().toISOString()
+        latitude,
+        longitude,
+        registration_status: 'pending',
+        eligibility_status: eligibilityStatus,
+        consent_given: formData.consent
       };
 
-      const { error: eligibleError } = await supabase
-        .from('eligible_donors')
-        .upsert(upsertPayload, { onConflict: 'user_id' });
+      const { error: registrationError } = await supabase
+        .from('donor_registrations')
+        .insert(registrationPayload);
 
-      if (eligibleError) {
-        console.error('Eligible donors upsert error:', eligibleError);
+      if (registrationError) {
+        console.error('Donor registration error:', registrationError);
         toast({
-          title: "Warning",
-          description: "Profile saved but eligible donor data could not be updated. You may need to re-register.",
+          title: "Registration Error",
+          description: `Failed to save registration: ${registrationError.message}`,
           variant: "destructive"
         });
-        // Continue with success flow but warn user
+        setIsSubmitting(false);
+        return;
+      }
+
+      // If eligible, also add to eligible_donors table
+      if (eligibilityStatus === 'eligible') {
+        const eligiblePayload = {
+          user_id: user.id,
+          full_name: formData.fullName,
+          blood_group: formData.bloodGroup,
+          phone: formData.phone,
+          email: user.email || formData.email,
+          age: parseInt(formData.age),
+          gender: formData.gender,
+          city: formData.city,
+          address: formData.address,
+          latitude,
+          longitude,
+          hemoglobin_level: formData.hemoglobin ? parseFloat(formData.hemoglobin) : null,
+          rbc_count: formData.rbcCount ? parseFloat(formData.rbcCount) : null,
+          blood_pressure_systolic: formData.systolicBP ? parseInt(formData.systolicBP) : null,
+          blood_pressure_diastolic: formData.diastolicBP ? parseInt(formData.diastolicBP) : null,
+          weight_kg: formData.weightKg ? parseFloat(formData.weightKg) : null,
+          height_cm: formData.heightCm ? parseInt(formData.heightCm) : null,
+          pulse_rate: formData.pulseRate ? parseInt(formData.pulseRate) : null,
+          has_medical_conditions: formData.medicalConditions,
+          taking_medications: formData.medications,
+          recent_illness: formData.recentIllness,
+          recent_surgery: formData.recentSurgery,
+          has_tattoos: formData.hasTattoos,
+          is_eligible: true,
+          is_verified: true,
+          is_available: true,
+          last_donation_date: formData.lastDonation || null
+        };
+
+        const { error: eligibleError } = await supabase
+          .from('eligible_donors')
+          .upsert(eligiblePayload, { onConflict: 'user_id' });
+
+        if (eligibleError) {
+          console.error('Eligible donors upsert error:', eligibleError);
+          // Don't fail the registration for this error
+        }
       }
 
       console.log('Profile updated successfully');

@@ -72,23 +72,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code === 'PGRST116') {
+      console.log('Profile fetch result:', { data, error });
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+        setLoading(false);
+        return;
+      }
+
+      if (!data) {
         // Profile doesn't exist, create one
         console.log('Profile not found, creating new profile for user:', userId);
         await createProfile(userId);
-      } else if (error) {
-        console.error('Error fetching profile:', error);
-        setLoading(false);
       } else {
+        console.log('Profile loaded:', data);
         setProfile(data);
         // Check if profile setup is complete (has all required fields)
         const isComplete = !!(data.full_name && data.age && data.gender && data.blood_group && data.phone && data.address && data.city);
+        console.log('Profile setup complete:', isComplete);
         setProfileSetupComplete(isComplete);
         setLoading(false);
       }
