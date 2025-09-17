@@ -192,9 +192,9 @@ const BloodStatus = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-8">
           <Droplets className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-foreground">Check Blood Availability</h1>
+          <h1 className="text-3xl font-bold text-foreground">Request Blood</h1>
           <p className="text-muted-foreground mt-2">
-            Find blood banks with available stock or nearby donors
+            Find blood availability and create urgent requests
           </p>
         </div>
 
@@ -327,6 +327,29 @@ const BloodStatus = () => {
                   <Button variant="outline" onClick={() => setShowUrgentForm(false)}>
                     Cancel
                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Map Section - Show collected data on map */}
+        {(inventory.length > 0 || nearbyDonors.length > 0) && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <MapPin className="w-5 h-5 mr-2" />
+                Blood Availability Map
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-600">Interactive map showing blood banks and donors</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {inventory.length} blood banks • {nearbyDonors.length} donors found
+                  </p>
                 </div>
               </div>
             </CardContent>

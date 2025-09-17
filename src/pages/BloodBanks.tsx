@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Phone, MapPin, Clock, Search } from 'lucide-react';
+import { CreateBloodBankDialog } from '@/components/CreateBloodBankDialog';
 
 interface BloodBank {
   id: string;
@@ -115,7 +116,12 @@ const BloodBanks = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold">Blood Banks</h1>
-          <Button variant="outline" size="sm" onClick={resetFilters}>Reset</Button>
+          <div className="flex gap-2">
+            <CreateBloodBankDialog>
+              <Button variant="default" size="sm">Create Blood Bank</Button>
+            </CreateBloodBankDialog>
+            <Button variant="outline" size="sm" onClick={resetFilters}>Reset</Button>
+          </div>
         </div>
 
         <Card className="mb-6">

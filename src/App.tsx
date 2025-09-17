@@ -38,7 +38,7 @@ const App = () => (
             <Route path="/register" element={<DonorRegistration />} />
             <Route path="/find-donor" element={<FindDonor />} />
             <Route path="/eligibility" element={<Eligibility />} />
-            <Route path="/blood-status" element={<BloodStatus />} />
+            <Route path="/request-blood" element={<BloodStatus />} />
             <Route path="/blood-banks" element={<BloodBanks />} />
             <Route path="/camps" element={<Camps />} />
             <Route path="/camps/:id" element={<CampDetails />} />

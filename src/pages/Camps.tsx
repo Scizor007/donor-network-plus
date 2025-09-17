@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, MapPin, Users, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { CreateCampDialog } from '@/components/CreateCampDialog';
 
 interface Camp {
   id: string;
@@ -102,7 +103,12 @@ const Camps = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold">Blood Donation Camps</h1>
-          <Button variant="outline" size="sm" onClick={reset}>Reset</Button>
+          <div className="flex gap-2">
+            <CreateCampDialog>
+              <Button variant="default" size="sm">Create Camp</Button>
+            </CreateCampDialog>
+            <Button variant="outline" size="sm" onClick={reset}>Reset</Button>
+          </div>
         </div>
 
         <Card className="mb-6">

@@ -500,12 +500,9 @@ const DonorRegistration = () => {
         consent: false
       });
       setEligibilityStatus(null);
-      setIsSubmitting(false);
-
-      // Redirect to profile page
-      setTimeout(() => {
-        window.location.href = '/profile';
-      }, 1500);
+      
+      // Redirect immediately to profile page
+      window.location.href = '/profile';
 
     } catch (error) {
       console.error('Registration error:', error);

@@ -64,11 +64,11 @@ const Navigation = () => {
               Eligibility
             </Link>
             <Link
-              to="/blood-status"
-              className={`text-sm font-medium transition-colors ${isActive('/blood-status') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              to="/request-blood"
+              className={`text-sm font-medium transition-colors ${isActive('/request-blood') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
-              Check Status
+              Request Blood
             </Link>
             <Link
               to="/blood-banks"
@@ -195,12 +195,12 @@ const Navigation = () => {
                 Eligibility
               </Link>
               <Link
-                to="/blood-status"
+                to="/request-blood"
                 onClick={() => setIsOpen(false)}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${isActive('/blood-status') ? 'text-primary' : 'text-muted-foreground'
+                className={`px-3 py-2 text-sm font-medium transition-colors ${isActive('/request-blood') ? 'text-primary' : 'text-muted-foreground'
                   }`}
               >
-                Check Status
+                Request Blood
               </Link>
               <Link
                 to="/blood-banks"
