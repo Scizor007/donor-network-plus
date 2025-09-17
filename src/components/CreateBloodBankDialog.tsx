@@ -66,6 +66,9 @@ export const CreateBloodBankDialog = ({ children, onBloodBankCreated }: CreateBl
       return;
     }
 
+    // Check if user is admin (for demonstration, we'll allow all users for now)
+    // In production, only verified admins should be able to create blood banks
+
     if (selectedServices.length === 0) {
       toast({
         title: "Services Required",
