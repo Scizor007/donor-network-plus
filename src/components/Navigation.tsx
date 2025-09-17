@@ -84,20 +84,6 @@ const Navigation = () => {
             >
               Camps
             </Link>
-            <Link
-              to="/request-blood"
-              className={`text-sm font-medium transition-colors ${isActive('/request-blood') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              Request Blood
-            </Link>
-            <Link
-              to="/hospital"
-              className={`text-sm font-medium transition-colors ${isActive('/hospital') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              Hospital Portal
-            </Link>
           </div>
 
           {/* CTA Buttons */}
@@ -231,14 +217,6 @@ const Navigation = () => {
                   }`}
               >
                 Camps
-              </Link>
-              <Link
-                to="/request-blood"
-                onClick={() => setIsOpen(false)}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${isActive('/request-blood') ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-              >
-                Request Blood
               </Link>
               <div className="flex flex-col space-y-2 pt-4">
                 {user ? (

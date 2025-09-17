@@ -12,13 +12,11 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
-import HospitalPortal from "./pages/HospitalPortal";
 import BloodStatus from "./pages/BloodStatus";
 import { AIAssistant } from "@/components/AIAssistant";
 import BloodBanks from "./pages/BloodBanks";
 import Camps from "./pages/Camps";
 import CampDetails from "./pages/CampDetails";
-import RequestBlood from "./pages/RequestBlood";
 import Certificate from "./pages/Certificate";
 import AdminDashboard from "./pages/AdminDashboard";
 import DatabaseTest from "./pages/DatabaseTest";
@@ -40,12 +38,10 @@ const App = () => (
             <Route path="/register" element={<DonorRegistration />} />
             <Route path="/find-donor" element={<FindDonor />} />
             <Route path="/eligibility" element={<Eligibility />} />
-            <Route path="/hospital" element={<HospitalPortal />} />
             <Route path="/blood-status" element={<BloodStatus />} />
             <Route path="/blood-banks" element={<BloodBanks />} />
             <Route path="/camps" element={<Camps />} />
             <Route path="/camps/:id" element={<CampDetails />} />
-            <Route path="/request-blood" element={<RequestBlood />} />
             <Route path="/certificate" element={<Certificate />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/database-test" element={<DatabaseTest />} />
