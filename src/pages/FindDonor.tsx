@@ -238,12 +238,14 @@ const FindDonor = () => {
     normal: 'bg-green-500'
   })[urgency] || 'bg-green-500';
 
-  const getMapCenter = () => {
+  const getMapCenter = (): [number, number] => {
     if (userLocation) return userLocation;
     if (filteredDonors.length > 0) {
       const lats = filteredDonors.map(d => d.coordinates[0]);
       const lngs = filteredDonors.map(d => d.coordinates[1]);
-      return [lats.reduce((a, b) => a + b, 0) / lats.length, lngs.reduce((a, b) => a + b, 0) / lngs.length];
+      const avgLat = lats.length > 0 ? lats.reduce((a, b) => a + b, 0) / lats.length : 20.5937;
+      const avgLng = lngs.length > 0 ? lngs.reduce((a, b) => a + b, 0) / lngs.length : 78.9629;
+      return [avgLat, avgLng];
     }
     return [20.5937, 78.9629]; // India centroid
   };
