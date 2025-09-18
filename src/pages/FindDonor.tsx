@@ -57,7 +57,6 @@ const FindDonor = () => {
     location: '',
     urgency: 'normal'
   });
-
   const [filteredDonors, setFilteredDonors] = useState<Donor[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showMap, setShowMap] = useState(true);
@@ -69,23 +68,22 @@ const FindDonor = () => {
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-  // Load real data on component mount
   useEffect(() => {
     fetchRealData();
+    getUserLocation();
   }, []);
 
-  // Get user location
   const getUserLocation = () => {
     if (!navigator.geolocation) {
       setLocationPermission('denied');
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
         setUserLocation(coords);
         setLocationPermission('granted');
+        calculateDistances(coords);
       },
       (error) => {
         console.error('Error getting location:', error);
@@ -94,304 +92,96 @@ const FindDonor = () => {
     );
   };
 
-  // Fetch real data from database
   const fetchRealData = async () => {
-    try {
-      // Fetch eligible donors from new table
-      const { data: donors, error: donorsError } = await supabase
-        .from('eligible_donors')
-        .select('*')
-        .eq('is_eligible', true)
-        .eq('is_available', true)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
-
-      if (donorsError) {
-        console.error('Error fetching donors:', donorsError);
-        return;
-      }
-
-      const formattedDonors: Donor[] = donors.map(donor => ({
-        id: donor.id,
-        name: donor.full_name,
-        bloodGroup: donor.blood_group,
-        location: `${donor.city}, ${donor.address}`,
-        distance: '0 km', // Will be calculated based on user location
-        lastDonation: donor.last_donation_date || 'Never donated',
-        verified: donor.is_verified || false,
-        available: donor.is_available || false,
-        phone: donor.phone || '',
-        coordinates: [donor.latitude, donor.longitude],
-        city: donor.city
-      }));
-
-      setAllDonors(formattedDonors);
-      setFilteredDonors(formattedDonors);
-
-      // Add test emergency locations and blood camps
-      addTestData();
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
-
-  // Add some test donors from Indian cities (fallback)
-  const addTestData = () => {
-    const testDonors: Donor[] = [
-      {
-        id: 'test-donor-1',
-        name: 'Rajesh Kumar',
-        bloodGroup: 'O+',
-        location: 'Banjara Hills, Hyderabad',
-        distance: '2.3 km',
-        lastDonation: '2 months ago',
-        verified: true,
-        available: true,
-        phone: '+91-98765-43210',
-        coordinates: [17.4065, 78.4772],
-        city: 'Hyderabad'
-      },
-      {
-        id: 'test-donor-2',
-        name: 'Priya Sharma',
-        bloodGroup: 'A-',
-        location: 'Andheri West, Mumbai',
-        distance: '1.8 km',
-        lastDonation: '1 month ago',
-        verified: true,
-        available: true,
-        phone: '+91-98765-43211',
-        coordinates: [19.1136, 72.8697],
-        city: 'Mumbai'
-      },
-      {
-        id: 'test-donor-3',
-        name: 'Amit Singh',
-        bloodGroup: 'B+',
-        location: 'Connaught Place, Delhi',
-        distance: '3.1 km',
-        lastDonation: '3 months ago',
-        verified: false,
-        available: false,
-        phone: '+91-98765-43212',
-        coordinates: [28.6315, 77.2167],
-        city: 'Delhi'
-      },
-      {
-        id: 'test-donor-4',
-        name: 'Sneha Patel',
-        bloodGroup: 'AB-',
-        location: 'Jubilee Hills, Hyderabad',
-        distance: '4.2 km',
-        lastDonation: '1 week ago',
-        verified: true,
-        available: true,
-        phone: '+91-98765-43213',
-        coordinates: [17.4339, 78.4010],
-        city: 'Hyderabad'
-      },
-      {
-        id: 'test-donor-5',
-        name: 'Vikram Reddy',
-        bloodGroup: 'O-',
-        location: 'Bandra East, Mumbai',
-        distance: '2.7 km',
-        lastDonation: '6 weeks ago',
-        verified: true,
-        available: true,
-        phone: '+91-98765-43214',
-        coordinates: [19.0596, 72.8295],
-        city: 'Mumbai'
-      },
-      {
-        id: 'test-donor-6',
-        name: 'Anita Gupta',
-        bloodGroup: 'A+',
-        location: 'Karol Bagh, Delhi',
-        distance: '1.5 km',
-        lastDonation: '2 weeks ago',
-        verified: false,
-        available: true,
-        phone: '+91-98765-43215',
-        coordinates: [28.6517, 77.1909],
-        city: 'Delhi'
-      }
-    ];
-
-    // Add some test emergency locations from Indian cities
-    const testEmergencyLocations: EmergencyLocation[] = [
-      {
-        id: 'test-emergency-1',
-        name: 'Apollo Hospitals, Hyderabad',
-        type: 'hospital' as const,
-        address: 'Road No 72, Jubilee Hills, Hyderabad, Telangana',
-        phone: '+91-40-4344-7777',
-        coordinates: [17.4339, 78.4010],
-        isOpen24h: true,
-        services: ['Emergency', 'Trauma', 'Blood Bank', 'ICU']
-      },
-      {
-        id: 'test-emergency-2',
-        name: 'Kokilaben Dhirubhai Ambani Hospital, Mumbai',
-        type: 'hospital' as const,
-        address: 'Rao Saheb Achutrao Patwardhan Marg, Four Bungalows, Andheri West, Mumbai',
-        phone: '+91-22-3099-9999',
-        coordinates: [19.1136, 72.8697],
-        isOpen24h: true,
-        services: ['Emergency', 'Trauma', 'Blood Bank', 'Cardiology']
-      },
-      {
-        id: 'test-emergency-3',
-        name: 'AIIMS Delhi',
-        type: 'hospital' as const,
-        address: 'Ansari Nagar, New Delhi, Delhi',
-        phone: '+91-11-2658-8500',
-        coordinates: [28.6315, 77.2167],
-        isOpen24h: true,
-        services: ['Emergency', 'Trauma', 'Blood Bank', 'Research']
-      },
-      {
-        id: 'test-emergency-4',
-        name: 'Red Cross Blood Bank, Hyderabad',
-        type: 'blood_bank' as const,
-        address: 'Red Cross Building, Red Hills, Hyderabad, Telangana',
-        phone: '+91-40-2323-4567',
-        coordinates: [17.4065, 78.4772],
-        isOpen24h: false,
-        services: ['Blood Collection', 'Emergency Response', 'Blood Storage']
-      },
-      {
-        id: 'test-emergency-5',
-        name: 'Mumbai Blood Bank',
-        type: 'blood_bank' as const,
-        address: 'Dr. E. Moses Road, Worli, Mumbai, Maharashtra',
-        phone: '+91-22-2494-1234',
-        coordinates: [19.0596, 72.8295],
-        isOpen24h: false,
-        services: ['Blood Collection', 'Emergency Response', 'Blood Testing']
-      },
-      {
-        id: 'test-emergency-6',
-        name: 'Safdarjung Hospital, Delhi',
-        type: 'hospital' as const,
-        address: 'Safdarjung Enclave, New Delhi, Delhi',
-        phone: '+91-11-2616-5000',
-        coordinates: [28.6517, 77.1909],
-        isOpen24h: true,
-        services: ['Emergency', 'Trauma', 'Blood Bank', 'Pediatrics']
-      }
-    ];
-
-    // Add some test blood camps from Indian cities
-    const testBloodCamps: BloodCamp[] = [
-      {
-        id: 'test-camp-1',
-        name: 'Hyderabad Blood Donation Drive',
-        venue: 'HITEC City Convention Centre',
-        address: 'HITEC City, Madhapur, Hyderabad, Telangana',
-        city: 'Hyderabad',
-        state: 'Telangana',
-        coordinates: [17.4478, 78.3564],
-        start_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-        end_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000).toISOString(),
-        status: 'upcoming' as const,
-        expected_units: 200,
-        contact_phone: '+91-40-1234-5678',
-        organizer_name: 'Red Cross Society, Hyderabad'
-      },
-      {
-        id: 'test-camp-2',
-        name: 'Mumbai Corporate Blood Camp',
-        venue: 'Bandra Kurla Complex',
-        address: 'Bandra Kurla Complex, Bandra East, Mumbai, Maharashtra',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        coordinates: [19.0596, 72.8295],
-        start_date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        end_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-        status: 'ongoing' as const,
-        expected_units: 120,
-        contact_phone: '+91-22-9876-5432',
-        organizer_name: 'Mumbai Blood Bank'
-      },
-      {
-        id: 'test-camp-3',
-        name: 'Delhi University Blood Donation Camp',
-        venue: 'Delhi University North Campus',
-        address: 'Viceregal Lodge, Delhi University, Delhi',
-        city: 'Delhi',
-        state: 'Delhi',
-        coordinates: [28.6881, 77.2105],
-        start_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-        end_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000).toISOString(),
-        status: 'upcoming' as const,
-        expected_units: 300,
-        contact_phone: '+91-11-2345-6789',
-        organizer_name: 'Delhi University NSS'
-      },
-      {
-        id: 'test-camp-4',
-        name: 'IT Park Blood Drive, Hyderabad',
-        venue: 'Cyber Gateway Building',
-        address: 'Cyber Gateway, HITEC City, Hyderabad, Telangana',
-        city: 'Hyderabad',
-        state: 'Telangana',
-        coordinates: [17.4478, 78.3564],
-        start_date: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-        end_date: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-        status: 'ongoing' as const,
-        expected_units: 80,
-        contact_phone: '+91-40-9876-1234',
-        organizer_name: 'Tech Mahindra CSR'
-      }
-    ];
-
-    // Add test data to existing data
-    setAllDonors(prev => [...prev, ...testDonors]);
-    setFilteredDonors(prev => [...prev, ...testDonors]);
-    setEmergencyLocations(prev => [...prev, ...testEmergencyLocations]);
-    setBloodCamps(prev => [...prev, ...testBloodCamps]);
-  };
-
-  // Fetch donors from database
-  const fetchDonors = async () => {
     try {
       const { data, error } = await supabase
         .from('eligible_donors')
         .select('*')
         .eq('is_eligible', true)
         .eq('is_available', true)
-        .not('blood_group', 'is', null)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching donors:', error);
+        return;
+      }
 
-      const donors: Donor[] = data.map(donor => ({
+      const formattedDonors: Donor[] = data.map(donor => ({
         id: donor.id,
         name: donor.full_name,
         bloodGroup: donor.blood_group,
-        location: `${donor.city || 'Unknown'}`,
-        distance: '0 km', // You can calculate this based on user location
-        lastDonation: donor.last_donation_date
-          ? formatLastDonation(donor.last_donation_date)
-          : 'Never donated',
-        verified: donor.is_verified,
-        available: donor.is_available,
+        location: `${donor.city || 'Unknown'}, ${donor.address || ''}`,
+        distance: '0 km',
+        lastDonation: donor.last_donation_date ? formatLastDonation(donor.last_donation_date) : 'Never donated',
+        verified: donor.is_verified || false,
+        available: donor.is_available || false,
         phone: donor.phone || '',
-        coordinates: [
-          donor.latitude || 28.6139,
-          donor.longitude || 77.2090
-        ] as [number, number],
+        coordinates: [donor.latitude || 28.6139, donor.longitude || 77.2090],
         city: donor.city
       }));
 
-      console.log('Fetched donors from database:', donors);
-      setAllDonors(donors);
-      setFilteredDonors(donors);
+      setAllDonors(formattedDonors);
+      setFilteredDonors(formattedDonors);
+      if (userLocation) calculateDistances(userLocation);
+
+      addTestData();
     } catch (error) {
-      console.error('Error fetching donors:', error);
+      console.error('Error fetching data:', error);
     }
+  };
+
+  const addTestData = () => {
+    const testDonors: Donor[] = [
+      { id: 'test-donor-1', name: 'Rajesh Kumar', bloodGroup: 'O+', location: 'Banjara Hills, Hyderabad', distance: '0 km', lastDonation: '2 months ago', verified: true, available: true, phone: '+91-98765-43210', coordinates: [17.4065, 78.4772], city: 'Hyderabad' },
+      { id: 'test-donor-2', name: 'Priya Sharma', bloodGroup: 'A-', location: 'Andheri West, Mumbai', distance: '0 km', lastDonation: '1 month ago', verified: true, available: true, phone: '+91-98765-43211', coordinates: [19.1136, 72.8697], city: 'Mumbai' },
+      { id: 'test-donor-3', name: 'Amit Singh', bloodGroup: 'B+', location: 'Connaught Place, Delhi', distance: '0 km', lastDonation: '3 months ago', verified: false, available: false, phone: '+91-98765-43212', coordinates: [28.6315, 77.2167], city: 'Delhi' },
+      { id: 'test-donor-4', name: 'Sneha Patel', bloodGroup: 'AB-', location: 'Jubilee Hills, Hyderabad', distance: '0 km', lastDonation: '1 week ago', verified: true, available: true, phone: '+91-98765-43213', coordinates: [17.4339, 78.4010], city: 'Hyderabad' },
+      { id: 'test-donor-5', name: 'Vikram Reddy', bloodGroup: 'O-', location: 'Bandra East, Mumbai', distance: '0 km', lastDonation: '6 weeks ago', verified: true, available: true, phone: '+91-98765-43214', coordinates: [19.0596, 72.8295], city: 'Mumbai' },
+      { id: 'test-donor-6', name: 'Anita Gupta', bloodGroup: 'A+', location: 'Karol Bagh, Delhi', distance: '0 km', lastDonation: '2 weeks ago', verified: false, available: true, phone: '+91-98765-43215', coordinates: [28.6517, 77.1909], city: 'Delhi' },
+    ];
+    const testEmergencyLocations: EmergencyLocation[] = [
+      { id: 'test-emergency-1', name: 'Apollo Hospitals, Hyderabad', type: 'hospital', address: 'Road No 72, Jubilee Hills, Hyderabad', phone: '+91-40-4344-7777', coordinates: [17.4339, 78.4010], isOpen24h: true, services: ['Emergency', 'Trauma', 'Blood Bank', 'ICU'] },
+      { id: 'test-emergency-2', name: 'Kokilaben Dhirubhai Ambani Hospital, Mumbai', type: 'hospital', address: 'Rao Saheb Achutrao Patwardhan Marg, Andheri West, Mumbai', phone: '+91-22-3099-9999', coordinates: [19.1136, 72.8697], isOpen24h: true, services: ['Emergency', 'Trauma', 'Blood Bank', 'Cardiology'] },
+      { id: 'test-emergency-3', name: 'AIIMS Delhi', type: 'hospital', address: 'Ansari Nagar, New Delhi', phone: '+91-11-2658-8500', coordinates: [28.6315, 77.2167], isOpen24h: true, services: ['Emergency', 'Trauma', 'Blood Bank', 'Research'] },
+    ];
+    const testBloodCamps: BloodCamp[] = [
+      { id: 'test-camp-1', name: 'Hyderabad Blood Donation Drive', venue: 'HITEC City Convention Centre', address: 'HITEC City, Madhapur, Hyderabad', city: 'Hyderabad', state: 'Telangana', coordinates: [17.4478, 78.3564], start_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), end_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000).toISOString(), status: 'upcoming', expected_units: 200, contact_phone: '+91-40-1234-5678', organizer_name: 'Red Cross Society, Hyderabad' },
+      { id: 'test-camp-2', name: 'Mumbai Corporate Blood Camp', venue: 'Bandra Kurla Complex', address: 'Bandra East, Mumbai', city: 'Mumbai', state: 'Maharashtra', coordinates: [19.0596, 72.8295], start_date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), end_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(), status: 'ongoing', expected_units: 120, contact_phone: '+91-22-9876-5432', organizer_name: 'Mumbai Blood Bank' },
+    ];
+    setAllDonors(prev => [...prev, ...testDonors]);
+    setFilteredDonors(prev => [...prev, ...testDonors]);
+    setEmergencyLocations(prev => [...prev, ...testEmergencyLocations]);
+    setBloodCamps(prev => [...prev, ...testBloodCamps]);
+    if (userLocation) calculateDistances(userLocation);
+  };
+
+  const calculateDistances = (userCoords: [number, number]) => {
+    const R = 6371; // Earth's radius in km
+    setAllDonors(prev => prev.map(donor => {
+      const [lat1, lon1] = userCoords;
+      const [lat2, lon2] = donor.coordinates;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+      return { ...donor, distance: `${distance.toFixed(1)} km` };
+    }));
+    setFilteredDonors(prev => prev.map(donor => {
+      const [lat1, lon1] = userCoords;
+      const [lat2, lon2] = donor.coordinates;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+      return { ...donor, distance: `${distance.toFixed(1)} km` };
+    }));
   };
 
   const formatLastDonation = (date: string) => {
@@ -399,15 +189,11 @@ const FindDonor = () => {
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - donationDate.getTime());
     const diffMonths = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 30));
-
-    if (diffMonths === 0) return 'This month';
-    if (diffMonths === 1) return '1 month ago';
-    return `${diffMonths} months ago`;
+    return diffMonths === 0 ? 'This month' : diffMonths === 1 ? '1 month ago' : `${diffMonths} months ago`;
   };
 
-  const handleSearch = () => {
+  const handleRealTimeSearch = () => {
     setIsSearching(true);
-
     setTimeout(() => {
       let filtered = allDonors;
 
@@ -423,7 +209,6 @@ const FindDonor = () => {
         );
       }
 
-      // Filter by availability
       filtered = filtered.filter(donor => donor.available);
 
       setFilteredDonors(filtered);
@@ -431,90 +216,15 @@ const FindDonor = () => {
     }, 500);
   };
 
-  // Real-time search as user types
-  const handleRealTimeSearch = () => {
-    let filtered = allDonors;
-
-    if (searchFilters.bloodGroup) {
-      filtered = filtered.filter(donor => donor.bloodGroup === searchFilters.bloodGroup);
-    }
-
-    if (searchFilters.location) {
-      filtered = filtered.filter(donor =>
-        donor.location.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
-        donor.name.toLowerCase().includes(searchFilters.location.toLowerCase()) ||
-        donor.city?.toLowerCase().includes(searchFilters.location.toLowerCase())
-      );
-    }
-
-    // Filter by availability
-    filtered = filtered.filter(donor => donor.available);
-
-    setFilteredDonors(filtered);
-  };
-
-  // Use test data for emergency locations and blood camps
-  const addTestEmergencyAndCamps = () => {
-    // Add test emergency locations and blood camps since database tables don't exist yet
-    const testEmergencyLocations: EmergencyLocation[] = [
-      {
-        id: 'test-emergency-1',
-        name: 'Apollo Hospitals, Hyderabad',
-        type: 'hospital' as const,
-        address: 'Road No 72, Jubilee Hills, Hyderabad, Telangana',
-        phone: '+91-40-4344-7777',
-        coordinates: [17.4339, 78.4010],
-        isOpen24h: true,
-        services: ['Emergency', 'Trauma', 'Blood Bank', 'ICU']
-      }
-    ];
-
-    const testBloodCamps: BloodCamp[] = [
-      {
-        id: 'test-camp-1',
-        name: 'Hyderabad Blood Donation Drive',
-        venue: 'HITEC City Convention Centre',
-        address: 'HITEC City, Madhapur, Hyderabad, Telangana',
-        city: 'Hyderabad',
-        state: 'Telangana',
-        coordinates: [17.4478, 78.3564],
-        start_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-        end_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000).toISOString(),
-        status: 'upcoming' as const,
-        expected_units: 200,
-        contact_phone: '+91-40-1234-5678',
-        organizer_name: 'Red Cross Society, Hyderabad'
-      }
-    ];
-
-    setEmergencyLocations(prev => [...prev, ...testEmergencyLocations]);
-    setBloodCamps(prev => [...prev, ...testBloodCamps]);
-  };
-
-  // Real-time search effect
   useEffect(() => {
     handleRealTimeSearch();
   }, [searchFilters, allDonors]);
 
-  // Load data on component mount and set up real-time updates
   useEffect(() => {
-    fetchDonors();
-    addTestEmergencyAndCamps();
-
-    // Set up real-time subscription for new donors
     const channel = supabase
       .channel('eligible_donors_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'eligible_donors'
-        },
-        () => {
-          fetchDonors(); // Refresh donors when changes occur
-        }
-      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'eligible_donors' }, () => fetchRealData())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'eligible_donors' }, () => fetchRealData())
       .subscribe();
 
     return () => {
@@ -522,12 +232,20 @@ const FindDonor = () => {
     };
   }, []);
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'critical': return 'bg-red-500';
-      case 'urgent': return 'bg-orange-500';
-      default: return 'bg-green-500';
+  const getUrgencyColor = (urgency: string) => ({
+    critical: 'bg-red-500',
+    urgent: 'bg-orange-500',
+    normal: 'bg-green-500'
+  })[urgency] || 'bg-green-500';
+
+  const getMapCenter = () => {
+    if (userLocation) return userLocation;
+    if (filteredDonors.length > 0) {
+      const lats = filteredDonors.map(d => d.coordinates[0]);
+      const lngs = filteredDonors.map(d => d.coordinates[1]);
+      return [lats.reduce((a, b) => a + b, 0) / lats.length, lngs.reduce((a, b) => a + b, 0) / lngs.length];
     }
+    return [20.5937, 78.9629]; // India centroid
   };
 
   return (
@@ -543,7 +261,6 @@ const FindDonor = () => {
           <p className="text-muted-foreground mt-2">Connect with verified donors in your area</p>
         </div>
 
-        {/* Location Permission & Test Data */}
         <Card className="mb-6 shadow-lg">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -576,7 +293,6 @@ const FindDonor = () => {
           </CardContent>
         </Card>
 
-        {/* Search Filters */}
         <Card className="mb-8 shadow-lg sticky top-16 z-10 backdrop-blur supports-[backdrop-filter]:bg-white/70 border border-border/60">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -588,13 +304,7 @@ const FindDonor = () => {
             <div className="grid md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="bloodGroup">Blood Group *</Label>
-                <Select onValueChange={(value) => {
-                  setSearchFilters({ ...searchFilters, bloodGroup: value });
-                  // Trigger real-time search
-                  setTimeout(() => {
-                    handleRealTimeSearch();
-                  }, 300);
-                }}>
+                <Select onValueChange={(value) => setSearchFilters({ ...searchFilters, bloodGroup: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select blood group" />
                   </SelectTrigger>
@@ -605,23 +315,15 @@ const FindDonor = () => {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>
                 <Input
                   id="location"
                   placeholder="Enter city or area"
                   value={searchFilters.location}
-                  onChange={(e) => {
-                    setSearchFilters({ ...searchFilters, location: e.target.value });
-                    // Trigger real-time search
-                    setTimeout(() => {
-                      handleRealTimeSearch();
-                    }, 300);
-                  }}
+                  onChange={(e) => setSearchFilters({ ...searchFilters, location: e.target.value })}
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="urgency">Urgency Level</Label>
                 <Select onValueChange={(value) => setSearchFilters({ ...searchFilters, urgency: value })}>
@@ -635,10 +337,9 @@ const FindDonor = () => {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="flex items-end space-x-2">
                 <Button
-                  onClick={handleSearch}
+                  onClick={handleRealTimeSearch}
                   className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed"
                   disabled={isSearching}
                 >
@@ -662,7 +363,6 @@ const FindDonor = () => {
           </CardContent>
         </Card>
 
-        {/* Urgency Indicator */}
         {searchFilters.urgency !== 'normal' && (
           <div className={`${getUrgencyColor(searchFilters.urgency)} text-white p-4 rounded-lg mb-6 text-center shadow-md animate-pulse`}>
             <span className="font-semibold">
@@ -674,7 +374,6 @@ const FindDonor = () => {
           </div>
         )}
 
-        {/* Map Section */}
         <Card className="mb-8 shadow-lg animate-in fade-in-50 slide-in-from-bottom-2">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -698,7 +397,7 @@ const FindDonor = () => {
                 emergencyLocations={emergencyLocations}
                 bloodCamps={bloodCamps}
                 userLocation={userLocation}
-                center={userLocation || [20.5937, 78.9629]}
+                center={getMapCenter()}
                 zoom={userLocation ? 12 : 5}
               />
               <div className="mt-4 flex items-center justify-center space-x-6 text-sm text-muted-foreground flex-wrap gap-4">
@@ -731,7 +430,6 @@ const FindDonor = () => {
           )}
         </Card>
 
-        {/* Results */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-foreground">
@@ -766,11 +464,9 @@ const FindDonor = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${donor.available ? 'bg-primary' : 'bg-muted-foreground'
-                          }`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${donor.available ? 'bg-primary' : 'bg-muted-foreground'}`}>
                           {donor.bloodGroup}
                         </div>
-
                         <div>
                           <div className="flex items-center space-x-2">
                             <h3 className="font-semibold text-foreground">{donor.name}</h3>
@@ -784,7 +480,6 @@ const FindDonor = () => {
                               {donor.available ? 'Available' : 'Unavailable'}
                             </Badge>
                           </div>
-
                           <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
                             <span className="flex items-center">
                               <MapPin className="w-4 h-4 mr-1" />
@@ -797,7 +492,6 @@ const FindDonor = () => {
                           </div>
                         </div>
                       </div>
-
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
@@ -824,7 +518,6 @@ const FindDonor = () => {
           )}
         </div>
 
-        {/* Emergency Contact */}
         <Card className="mt-8 border-primary/20 bg-primary/5">
           <CardContent className="p-6 text-center">
             <h3 className="text-lg font-semibold text-foreground mb-2">Emergency Blood Need?</h3>
