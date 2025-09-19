@@ -94,22 +94,93 @@ const NotificationSystem = () => {
 
   const acceptRequest = async (notification: any) => {
     try {
+      // Mark notification as read
       await markAsRead(notification.id);
-      // Optionally: update request status or create an acceptance record in backend later
-      toast({ title: 'Accepted', description: 'You accepted the request. Opening maps...' });
-      const url = extractFirstUrl(notification.message);
-      if (url) window.open(url, '_blank');
-    } catch (e) {
-      console.error('Error accepting request:', e);
+
+      // Record donor response in database
+      const { error: responseError } = await supabase
+        .from('donor_responses')
+        .insert({
+          blood_request_id: notification.metadata.blood_request_id,
+          donor_id: user?.id,
+          response_type: 'accepted',
+          response_message: 'Donor accepted the blood request'
+        });
+
+      if (responseError) {
+        console.error('Error recording donor response:', responseError);
+        // Continue anyway - don't block the user experience
+      }
+
+      // Send notification to requester about acceptance
+      if (notification.metadata.requester_id) {
+        await supabase.from('notifications').insert({
+          user_id: notification.metadata.requester_id,
+          title: `✅ Donor Response: Request Accepted!`,
+          message: `A donor has accepted your blood request for ${notification.metadata.blood_group}. They will be in touch soon.`,
+          type: 'donor_response',
+          metadata: {
+            blood_request_id: notification.metadata.blood_request_id,
+            donor_id: user?.id,
+            response_type: 'accepted',
+            patient_name: notification.metadata.patient_name,
+            blood_group: notification.metadata.blood_group
+          }
+        });
+      }
+      
+      toast({
+        title: "Request Accepted! ✅",
+        description: `You've accepted the request for ${notification.metadata.blood_group} blood. Opening navigation...`,
+      });
+
+      // Open navigation link
+      if (notification.metadata?.maps_link) {
+        window.open(notification.metadata.maps_link, '_blank');
+      }
+      
+    } catch (error) {
+      console.error('Error accepting request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to accept request. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
   const declineRequest = async (notification: any) => {
     try {
+      // Mark notification as read
       await markAsRead(notification.id);
-      toast({ title: 'Declined', description: 'You declined the request.' });
-    } catch (e) {
-      console.error('Error declining request:', e);
+
+      // Record donor response in database
+      const { error: responseError } = await supabase
+        .from('donor_responses')
+        .insert({
+          blood_request_id: notification.metadata.blood_request_id,
+          donor_id: user?.id,
+          response_type: 'declined',
+          response_message: 'Donor declined the blood request'
+        });
+
+      if (responseError) {
+        console.error('Error recording donor response:', responseError);
+        // Continue anyway - don't block the user experience
+      }
+      
+      toast({
+        title: "Request Declined",
+        description: "You have declined the blood request.",
+      });
+      
+    } catch (error) {
+      console.error('Error declining request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to decline request. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -141,6 +212,8 @@ const NotificationSystem = () => {
     switch (type) {
       case 'blood_request':
         return <Droplets className="w-4 h-4 text-red-500" />;
+      case 'donor_response':
+        return <Users className="w-4 h-4 text-green-500" />;
       case 'donation_drive':
         return <Calendar className="w-4 h-4 text-blue-500" />;
       case 'donor_match':

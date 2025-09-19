@@ -218,10 +218,25 @@ const BloodStatus = () => {
 
       const notifications = donors.map((d) => ({
         user_id: d.user_id,
-        title,
-        message,
+        title: `🩸 Urgent Blood Request: ${selectedBloodGroup} Needed!`,
+        message: `Patient ${urgentRequest.patient_name} at ${urgentRequest.hospital_name} needs ${selectedBloodGroup} blood. Urgency: ${urgentRequest.urgency_level}. Tap to respond.`,
         type: 'blood_request',
         is_read: false,
+        metadata: {
+          blood_request_id: requestData.id,
+          patient_name: urgentRequest.patient_name,
+          hospital_name: urgentRequest.hospital_name,
+          hospital_address: urgentRequest.hospital_address,
+          contact_phone: urgentRequest.contact_phone,
+          blood_group: selectedBloodGroup,
+          units_needed: urgentRequest.units_needed,
+          urgency_level: urgentRequest.urgency_level,
+          needed_by: urgentRequest.needed_by,
+          additional_notes: urgentRequest.additional_notes,
+          coordinates: [requestData.latitude, requestData.longitude],
+          maps_link: mapsUrl,
+          requester_id: user?.id
+        }
       }));
 
       // Insert in small batches to avoid payload limits

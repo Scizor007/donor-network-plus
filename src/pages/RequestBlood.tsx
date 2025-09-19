@@ -61,30 +61,39 @@ const RequestBlood = () => {
     if (!user?.id) return toast({ title: 'Error', description: 'Please log in to submit a request.' });
     setIsSubmitting(true);
 
-    // Geocode hospital address (simplified; consider a geocoding API like OpenCage or Google Maps)
-    const [latitude, longitude] = userLocation || [28.6139, 77.2090]; // Default to Delhi if no location
+    try {
+      // Geocode hospital address (simplified; consider a geocoding API like OpenCage or Google Maps)
+      const [latitude, longitude] = userLocation || [28.6139, 77.2090]; // Default to Delhi if no location
 
-    const { error } = await supabase.from('blood_requests').insert({
-      patient_name: formData.patientName,
-      hospital_name: formData.hospitalName,
-      hospital_address: formData.hospitalAddress,
-      contact_phone: formData.contactPhone,
-      units_needed: formData.unitsNeeded,
-      needed_by: formData.neededBy,
-      additional_notes: formData.additionalNotes,
-      urgency_level: formData.urgencyLevel,
-      blood_group: formData.bloodGroup,
-      user_id: user.id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      latitude,
-      longitude, // Add lat/long for mapping (optional; requires geocoding)
-    });
+      const { data: requestData, error } = await supabase.from('blood_requests').insert({
+        patient_name: formData.patientName,
+        hospital_name: formData.hospitalName,
+        hospital_address: formData.hospitalAddress,
+        contact_phone: formData.contactPhone,
+        units_needed: formData.unitsNeeded,
+        needed_by: formData.neededBy,
+        additional_notes: formData.additionalNotes,
+        urgency_level: formData.urgencyLevel,
+        blood_group: formData.bloodGroup,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        latitude,
+        longitude,
+        status: 'active'
+      }).select().single();
 
-    setIsSubmitting(false);
-    if (error) toast({ title: 'Error', description: error.message });
-    else {
-      toast({ title: 'Success', description: 'Blood request submitted!' });
+      if (error) throw error;
+
+      toast({
+        title: "Blood Request Submitted! 🩸",
+        description: "Your request has been sent to nearby donors. You'll be notified when someone responds."
+      });
+
+      // Send notifications to nearby eligible donors
+      await sendNotificationsToDonors(requestData, [latitude, longitude]);
+
+      // Reset form
       setFormData({
         patientName: '',
         hospitalName: '',
@@ -97,6 +106,96 @@ const RequestBlood = () => {
         bloodGroup: '',
       });
       fetchRequests();
+    } catch (error) {
+      console.error('Error submitting blood request:', error);
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to submit blood request. Please try again.' 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const sendNotificationsToDonors = async (requestData: any, requestCoords: [number, number]) => {
+    try {
+      // Fetch nearby eligible donors with matching blood group
+      const { data: nearbyDonorsData, error: donorsError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, latitude, longitude, blood_group')
+        .eq('is_available', true)
+        .eq('user_type', 'donor')
+        .eq('blood_group', requestData.blood_group)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
+
+      if (donorsError) {
+        console.error('Error fetching nearby donors for notification:', donorsError);
+        return;
+      }
+
+      if (!nearbyDonorsData || nearbyDonorsData.length === 0) {
+        console.log('No nearby donors found for blood group:', requestData.blood_group);
+        return;
+      }
+
+      // Calculate distance and filter donors within 50km radius
+      const R = 6371; // Earth's radius in km
+      const [lat1, lon1] = requestCoords;
+      
+      const eligibleDonors = nearbyDonorsData.filter(donor => {
+        if (!donor.latitude || !donor.longitude) return false;
+        
+        const [lat2, lon2] = [donor.latitude, donor.longitude];
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = R * c;
+        
+        return distance <= 50; // Notify donors within 50km radius
+      });
+
+      console.log(`Sending notifications to ${eligibleDonors.length} nearby donors`);
+
+      // Create notification for each eligible donor
+      const notificationPromises = eligibleDonors.map(donor => {
+        const mapsLink = `https://www.google.com/maps/dir/?api=1&destination=${requestData.latitude},${requestData.longitude}`;
+        
+        return supabase.from('notifications').insert({
+          user_id: donor.user_id,
+          title: `🩸 Blood Request: ${requestData.blood_group} Needed!`,
+          message: `Patient ${requestData.patient_name} at ${requestData.hospital_name} needs ${requestData.blood_group} blood. Urgency: ${requestData.urgency_level}. Tap to respond.`,
+          type: 'blood_request',
+          metadata: {
+            blood_request_id: requestData.id,
+            patient_name: requestData.patient_name,
+            hospital_name: requestData.hospital_name,
+            hospital_address: requestData.hospital_address,
+            contact_phone: requestData.contact_phone,
+            blood_group: requestData.blood_group,
+            units_needed: requestData.units_needed,
+            urgency_level: requestData.urgency_level,
+            needed_by: requestData.needed_by,
+            additional_notes: requestData.additional_notes,
+            coordinates: requestCoords,
+            maps_link: mapsLink,
+            requester_id: requestData.user_id
+          }
+        });
+      });
+
+      await Promise.all(notificationPromises);
+      
+      toast({
+        title: "Notifications Sent! 📱",
+        description: `Blood request notifications sent to ${eligibleDonors.length} nearby donors.`
+      });
+
+    } catch (error) {
+      console.error('Error sending notifications to donors:', error);
     }
   };
 
