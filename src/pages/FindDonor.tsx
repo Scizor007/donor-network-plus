@@ -89,7 +89,6 @@ const FindDonor = () => {
   }, []);
 
   useEffect(() => {
-    // subscribe to live inserts/updates on requests
     const channel = supabase
       .channel('blood_requests_live')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'blood_requests' }, fetchActiveRequests)
@@ -118,72 +117,67 @@ const FindDonor = () => {
   };
 
   const fetchRealData = async () => {
-    try {
-      const { data, error } = await supabase
+  try {
+    const [donorsResp, profilesResp] = await Promise.all([
+      supabase
         .from('eligible_donors')
         .select('*')
         .eq('is_eligible', true)
         .eq('is_available', true)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
-
-      if (error) {
-        console.error('Error fetching donors:', error);
-      }
-
-      const formattedDonors: Donor[] = (data || []).map(donor => ({
-        id: donor.id,
-        name: donor.full_name,
-        bloodGroup: donor.blood_group,
-        location: `${donor.city || 'Unknown'}, ${donor.address || ''}`,
-        distance: '0 km',
-        lastDonation: donor.last_donation_date ? formatLastDonation(donor.last_donation_date) : 'Never donated',
-        verified: donor.is_verified || false,
-        available: donor.is_available || false,
-        phone: donor.phone || '',
-        coordinates: [donor.latitude || 28.6139, donor.longitude || 77.2090],
-        city: donor.city
-      }));
-
-      // Also include donors from profiles so new registrations/updates show immediately
-      const { data: profilesData } = await supabase
+        .not('latitude', 'is', null) // Corrected syntax
+        .not('longitude', 'is', null), // Corrected syntax
+      supabase
         .from('profiles')
         .select('*')
         .eq('user_type', 'donor')
         .eq('is_available', true)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null)
-        .limit(500);
+        .not('latitude', 'is', null) // Corrected syntax
+        .not('longitude', 'is', null) // Corrected syntax
+        .limit(500),
+    ]);
 
-      const profileDonors: Donor[] = (profilesData || []).map((donor: any) => ({
-        id: donor.id,
-        name: donor.full_name,
-        bloodGroup: donor.blood_group,
-        location: `${donor.city || 'Unknown'}, ${donor.address || ''}`,
-        distance: '0 km',
-        lastDonation: donor.last_donation_date ? formatLastDonation(donor.last_donation_date) : 'Never donated',
-        verified: donor.is_verified || false,
-        available: donor.is_available || false,
-        phone: donor.phone || '',
-        coordinates: [Number(donor.latitude) || 28.6139, Number(donor.longitude) || 77.2090],
-        city: donor.city
-      }));
-
-      // Merge unique by id (prefer eligible_donors data)
-      const byId = new Map<string, Donor>();
-      profileDonors.forEach(d => byId.set(d.id, d));
-      formattedDonors.forEach(d => byId.set(d.id, d));
-      const merged = Array.from(byId.values());
-
-      setAllDonors(merged);
-      setFilteredDonors(merged);
-      if (userLocation) calculateDistances(userLocation);
-
-      addTestData();
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    if (donorsResp.error || profilesResp.error) {
+      console.error('Error fetching donors:', donorsResp.error, profilesResp.error);
     }
-  };
+
+    const formattedDonors: Donor[] = (donorsResp.data || []).map(donor => ({
+      id: donor.id,
+      name: donor.full_name,
+      bloodGroup: donor.blood_group,
+      location: `${donor.city || 'Unknown'}, ${donor.address || ''}`,
+      distance: '0 km',
+      lastDonation: donor.last_donation_date ? formatLastDonation(donor.last_donation_date) : 'Never donated',
+      verified: donor.is_verified || false,
+      available: donor.is_available || false,
+      phone: donor.phone || '',
+      coordinates: [donor.latitude || 28.6139, donor.longitude || 77.2090],
+      city: donor.city,
+    }));
+
+    const profileDonors: Donor[] = (profilesResp.data || []).map((donor: any) => ({
+      id: donor.id,
+      name: donor.full_name,
+      bloodGroup: donor.blood_group,
+      location: `${donor.city || 'Unknown'}, ${donor.address || ''}`,
+      distance: '0 km',
+      lastDonation: donor.last_donation_date ? formatLastDonation(donor.last_donation_date) : 'Never donated',
+      verified: donor.is_verified || false,
+      available: donor.is_available || false,
+      phone: donor.phone || '',
+      coordinates: [Number(donor.latitude) || 28.6139, Number(donor.longitude) || 77.2090],
+      city: donor.city,
+    }));
+
+    const mergedDonors = [...formattedDonors, ...profileDonors];
+    setAllDonors(prev => [...prev, ...mergedDonors.filter(d => !prev.some(p => p.id === d.id))]);
+    setFilteredDonors(prev => [...prev, ...mergedDonors.filter(d => !prev.some(p => p.id === d.id))]);
+    if (userLocation) calculateDistances(userLocation);
+
+    addTestData();
+  } catch (error) {
+    console.error('Error fetching data:', error);
+  }
+};
 
   const fetchActiveRequests = async () => {
     try {
@@ -220,11 +214,7 @@ const FindDonor = () => {
         isOpen24h: true,
         services: ['Blood Bank'],
       }));
-      setEmergencyLocations(prev => {
-        // Remove previous fetched banks (keep test hospitals if any)
-        const nonBanks = prev.filter(p => p.type !== 'blood_bank');
-        return [...nonBanks, ...banks];
-      });
+      setEmergencyLocations(prev => [...prev, ...banks.filter(b => !prev.some(p => p.id === b.id))]);
     } catch (e) {
       console.error('Error fetching blood banks:', e);
     }
@@ -248,10 +238,10 @@ const FindDonor = () => {
       { id: 'test-camp-1', name: 'Hyderabad Blood Donation Drive', venue: 'HITEC City Convention Centre', address: 'HITEC City, Madhapur, Hyderabad', city: 'Hyderabad', state: 'Telangana', coordinates: [17.4478, 78.3564], start_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), end_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 6 * 60 * 60 * 1000).toISOString(), status: 'upcoming', expected_units: 200, contact_phone: '+91-40-1234-5678', organizer_name: 'Red Cross Society, Hyderabad' },
       { id: 'test-camp-2', name: 'Mumbai Corporate Blood Camp', venue: 'Bandra Kurla Complex', address: 'Bandra East, Mumbai', city: 'Mumbai', state: 'Maharashtra', coordinates: [19.0596, 72.8295], start_date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), end_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(), status: 'ongoing', expected_units: 120, contact_phone: '+91-22-9876-5432', organizer_name: 'Mumbai Blood Bank' },
     ];
-    setAllDonors(prev => [...prev, ...testDonors]);
-    setFilteredDonors(prev => [...prev, ...testDonors]);
-    setEmergencyLocations(prev => [...prev, ...testEmergencyLocations]);
-    setBloodCamps(prev => [...prev, ...testBloodCamps]);
+    setAllDonors(prev => [...prev, ...testDonors.filter(d => !prev.some(p => p.id === d.id))]);
+    setFilteredDonors(prev => [...prev, ...testDonors.filter(d => !prev.some(p => p.id === d.id))]);
+    setEmergencyLocations(prev => [...prev, ...testEmergencyLocations.filter(e => !prev.some(p => p.id === e.id))]);
+    setBloodCamps(prev => [...prev, ...testBloodCamps.filter(c => !prev.some(p => p.id === c.id))]);
     if (userLocation) calculateDistances(userLocation);
   };
 
@@ -310,7 +300,6 @@ const FindDonor = () => {
 
       filtered = filtered.filter(donor => donor.available);
 
-      // Optional radius filtering around user's location
       if (showRadius && userLocation && radiusKm) {
         const [lat1, lon1] = userLocation;
         const R = 6371;
@@ -365,9 +354,9 @@ const FindDonor = () => {
 
   const getMapCenter = (): [number, number] => {
     if (userLocation) return userLocation;
-    if (filteredDonors.length > 0) {
-      const lats = filteredDonors.map(d => d.coordinates[0]);
-      const lngs = filteredDonors.map(d => d.coordinates[1]);
+    if (allDonors.length > 0) {
+      const lats = allDonors.map(d => d.coordinates[0]);
+      const lngs = allDonors.map(d => d.coordinates[1]);
       const avgLat = lats.length > 0 ? lats.reduce((a, b) => a + b, 0) / lats.length : 20.5937;
       const avgLng = lngs.length > 0 ? lngs.reduce((a, b) => a + b, 0) / lngs.length : 78.9629;
       return [avgLat, avgLng];
@@ -391,25 +380,23 @@ const FindDonor = () => {
         <Card className="mb-6 shadow-lg">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-              <div className="flex items-center gap-4">
-                {locationPermission === 'prompt' && (
-                  <Button onClick={getUserLocation} variant="outline" size="sm">
-                    📍 Get My Location
-                  </Button>
-                )}
-                {locationPermission === 'granted' && userLocation && (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm">Location enabled</span>
-                  </div>
-                )}
-                {locationPermission === 'denied' && (
-                  <div className="flex items-center gap-2 text-red-600">
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    <span className="text-sm">Location denied</span>
-                  </div>
-                )}
-              </div>
+              {locationPermission === 'prompt' && (
+                <Button onClick={getUserLocation} variant="outline" size="sm">
+                  📍 Get My Location
+                </Button>
+              )}
+              {locationPermission === 'granted' && userLocation && (
+                <div className="flex items-center gap-2 text-green-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm">Location enabled</span>
+                </div>
+              )}
+              {locationPermission === 'denied' && (
+                <div className="flex items-center gap-2 text-red-600">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-sm">Location denied</span>
+                </div>
+              )}
               <Button onClick={fetchRealData} variant="outline" size="sm">
                 🔄 Load Real Data
               </Button>
@@ -520,22 +507,8 @@ const FindDonor = () => {
           {showMap && (
             <CardContent>
               <Map
-                donors={filteredDonors}
-                emergencyLocations={(showRadius && userLocation && radiusKm)
-                  ? emergencyLocations.filter(loc => {
-                      const [lat1, lon1] = userLocation as [number, number];
-                      const [lat2, lon2] = loc.coordinates;
-                      const R = 6371;
-                      const dLat = (lat2 - lat1) * Math.PI / 180;
-                      const dLon = (lon2 - lon1) * Math.PI / 180;
-                      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                      const distance = R * c;
-                      return distance <= radiusKm;
-                    })
-                  : emergencyLocations}
+                donors={allDonors} // Use allDonors to show all data
+                emergencyLocations={emergencyLocations}
                 bloodCamps={bloodCamps}
                 userLocation={userLocation}
                 center={getMapCenter()}
@@ -546,7 +519,7 @@ const FindDonor = () => {
                     id: r.id,
                     patientName: r.patient_name,
                     bloodGroup: r.blood_group,
-                    urgencyLevel: r.urgency_level || undefined,
+                    urgencyLevel: r.urgency_level,
                     hospitalName: r.hospital_name,
                     coordinates: [Number(r.latitude), Number(r.longitude)] as [number, number],
                   }))}
@@ -560,7 +533,7 @@ const FindDonor = () => {
                   value={radiusKm}
                   onChange={(e) => setRadiusKm(parseInt(e.target.value) || 5)}
                 >
-                  {[5,10,15,25,50].map(km => (
+                  {[5, 10, 15, 25, 50].map(km => (
                     <option key={km} value={km}>{km} km</option>
                   ))}
                 </select>

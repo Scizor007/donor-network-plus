@@ -58,7 +58,6 @@ interface MapProps {
   userLocation?: [number, number] | null;
   center?: [number, number];
   zoom?: number;
-  // New: active blood requests to render on map
   requests?: Array<{
     id: string;
     patientName: string;
@@ -67,7 +66,6 @@ interface MapProps {
     hospitalName?: string;
     coordinates: [number, number];
   }>;
-  // New: optional radius overlay
   radiusCenter?: [number, number] | null;
   radiusKm?: number | null;
 }
@@ -92,27 +90,22 @@ const Map: React.FC<MapProps> = ({
     ensureLeafletIcons();
 
     if (containerRef.current && !mapRef.current) {
-      // Initialize map
       mapRef.current = L.map(containerRef.current).setView(center, zoom);
 
-      // OSM tiles
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(mapRef.current);
 
       markersLayerRef.current = L.layerGroup().addTo(mapRef.current);
     }
 
     return () => {
-      // Cleanup on unmount
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
         markersLayerRef.current = null;
       }
     };
-    // We only want to run this once on mount/unmount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -190,7 +183,7 @@ const Map: React.FC<MapProps> = ({
             <span style="padding:2px 6px;border-radius:6px;background:#ef4444;color:white;font-size:0.75rem;font-weight:600">${donor.bloodGroup}</span>
             ${donor.verified ? '<span style="color:#16a34a;font-size:0.7rem">✓ Verified</span>' : ''}
           </div>
-          ${donor.phone ? `<p style=\"margin:0;color:#555;font-size:0.8rem\">📞 ${donor.phone}</p>` : ''}
+          ${donor.phone ? `<p style="margin:0;color:#555;font-size:0.8rem">📞 ${donor.phone}</p>` : ''}
         </div>
       `;
       marker.bindPopup(html);
@@ -332,8 +325,6 @@ const Map: React.FC<MapProps> = ({
       marker.addTo(layer);
     });
 
-    markersLayerRef.current = layer;
-  
     // Draw active blood requests (patient/hospital) markers
     requests.forEach((req) => {
       const marker = L.marker(req.coordinates, {
@@ -368,7 +359,7 @@ const Map: React.FC<MapProps> = ({
           <h3 style="margin:0;font-weight:700;font-size:0.95rem">Blood Request</h3>
           <p style="margin:6px 0 4px 0;color:#ef4444;font-size:0.8rem;font-weight:600">${req.bloodGroup} ${req.urgencyLevel ? `• ${req.urgencyLevel.toUpperCase()}` : ''}</p>
           <p style="margin:0 0 4px 0;color:#555;font-size:0.8rem">Patient: ${req.patientName}</p>
-          ${req.hospitalName ? `<p style=\"margin:0 0 4px 0;color:#555;font-size:0.8rem\">Hospital: ${req.hospitalName}</p>` : ''}
+          ${req.hospitalName ? `<p style="margin:0 0 4px 0;color:#555;font-size:0.8rem">Hospital: ${req.hospitalName}</p>` : ''}
         </div>
       `;
       marker.bindPopup(html);
@@ -389,6 +380,8 @@ const Map: React.FC<MapProps> = ({
         weight: 1.5,
       }).addTo(mapRef.current);
     }
+
+    markersLayerRef.current = layer;
   }, [donors, emergencyLocations, bloodCamps, userLocation, requests, radiusCenter, radiusKm]);
 
   // Add CSS animations
