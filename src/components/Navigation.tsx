@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Heart, Menu, X, User, LogOut } from 'lucide-react';
+import { Heart, Menu, X, User, LogOut, Calendar, Building2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -84,6 +84,24 @@ const Navigation = () => {
             >
               Camps
             </Link>
+            {user && (
+              <>
+                <Link
+                  to="/book-appointment"
+                  className={`text-sm font-medium transition-colors ${isActive('/book-appointment') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                >
+                  Book Checkup
+                </Link>
+                <Link
+                  to="/hospital-portal"
+                  className={`text-sm font-medium transition-colors ${isActive('/hospital-portal') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                >
+                  Hospital Portal
+                </Link>
+              </>
+            )}
           </div>
 
           {/* CTA Buttons */}
@@ -120,6 +138,18 @@ const Navigation = () => {
                       <Link to="/profile" className="cursor-pointer">
                         <User className="mr-2 h-4 w-4" />
                         <span>Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/book-appointment" className="cursor-pointer">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        <span>Book Checkup</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/hospital-portal" className="cursor-pointer">
+                        <Building2 className="mr-2 h-4 w-4" />
+                        <span>Hospital Portal</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -218,6 +248,26 @@ const Navigation = () => {
               >
                 Camps
               </Link>
+              {user && (
+                <>
+                  <Link
+                    to="/book-appointment"
+                    onClick={() => setIsOpen(false)}
+                    className={`px-3 py-2 text-sm font-medium transition-colors ${isActive('/book-appointment') ? 'text-primary' : 'text-muted-foreground'
+                      }`}
+                  >
+                    Book Checkup
+                  </Link>
+                  <Link
+                    to="/hospital-portal"
+                    onClick={() => setIsOpen(false)}
+                    className={`px-3 py-2 text-sm font-medium transition-colors ${isActive('/hospital-portal') ? 'text-primary' : 'text-muted-foreground'
+                      }`}
+                  >
+                    Hospital Portal
+                  </Link>
+                </>
+              )}
               <div className="flex flex-col space-y-2 pt-4">
                 {user ? (
                   <>

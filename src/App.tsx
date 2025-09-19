@@ -20,6 +20,8 @@ import CampDetails from "./pages/CampDetails";
 import Certificate from "./pages/Certificate";
 import AdminDashboard from "./pages/AdminDashboard";
 import DatabaseTest from "./pages/DatabaseTest";
+import HospitalPortal from "./pages/HospitalPortal";
+import BookAppointment from "./pages/BookAppointment";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +47,8 @@ const App = () => (
             <Route path="/certificate" element={<Certificate />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/database-test" element={<DatabaseTest />} />
+            <Route path="/hospital-portal" element={<HospitalPortal />} />
+            <Route path="/book-appointment" element={<BookAppointment />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

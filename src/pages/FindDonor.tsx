@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, MapPin, Phone, Calendar, Shield, Heart, Map as MapIcon, Loader2 } from 'lucide-react';
+import { Search, MapPin, Phone, Calendar, Shield, Heart, Map as MapIcon, Loader2, CheckCircle } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Map from '@/components/Map';
 import { supabase } from '@/integrations/supabase/client';
@@ -557,6 +557,13 @@ const FindDonor = () => {
                   <span>Unavailable Donors</span>
                 </div>
                 <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold relative">
+                    A+
+                    <CheckCircle className="absolute -top-1 -right-1 w-3 h-3 text-green-600 bg-white rounded-full" />
+                  </div>
+                  <span>Verified Donors</span>
+                </div>
+                <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 bg-blue-600 rounded-sm flex items-center justify-center text-white text-xs transform -rotate-12">🏥</div>
                   <span>Upcoming Camps</span>
                 </div>
@@ -614,8 +621,8 @@ const FindDonor = () => {
                           <div className="flex items-center space-x-2">
                             <h3 className="font-semibold text-foreground">{donor.name}</h3>
                             {donor.verified && (
-                              <Badge variant="secondary" className="text-xs">
-                                <Shield className="w-3 h-3 mr-1" />
+                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 border-green-300">
+                                <CheckCircle className="w-3 h-3 mr-1" />
                                 Verified
                               </Badge>
                             )}
