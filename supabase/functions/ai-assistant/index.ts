@@ -1,6 +1,4 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,10 +14,37 @@ serve(async (req) => {
   }
 
   try {
+    // Parse request body
+    const contentType = req.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid content type. Use application/json',
+        success: false 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { message, context } = await req.json();
+    if (!message) {
+      return new Response(JSON.stringify({ 
+        error: 'Message is required',
+        success: false 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!geminiApiKey) {
-      throw new Error('Gemini API key not configured');
+      return new Response(JSON.stringify({ 
+        error: 'Gemini API key not configured. Please set GEMINI_API_KEY environment variable.',
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const systemPrompt = `You are BloodBot, an AI assistant for Blood Bridge, a blood donation platform. You help users with:
@@ -44,7 +69,7 @@ Context: ${context || 'General blood donation inquiry'}
 
 Respond in a friendly, informative manner. Keep responses concise but comprehensive.`;
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + geminiApiKey, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -86,16 +111,16 @@ Respond in a friendly, informative manner. Keep responses concise but comprehens
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('Gemini API error:', error);
-      throw new Error(`Gemini API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Gemini API error:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     console.log('Gemini API response:', JSON.stringify(data, null, 2));
 
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      throw new Error('Invalid response from Gemini API');
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0].text) {
+      throw new Error('Invalid response structure from Gemini API');
     }
 
     const aiResponse = data.candidates[0].content.parts[0].text;
@@ -110,11 +135,13 @@ Respond in a friendly, informative manner. Keep responses concise but comprehens
   } catch (error) {
     console.error('Error in ai-assistant function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error.message || 'Internal server error',
       success: false 
     }), {
-      status: 500,
+      status: error instanceof Error && 'status' in error ? (error as any).status || 500 : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+}, {
+  port: 8000, // Default port, can be changed via environment variable if needed
 });
