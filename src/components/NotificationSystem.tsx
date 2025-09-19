@@ -92,6 +92,32 @@ const NotificationSystem = () => {
     }
   };
 
+  const acceptRequest = async (notification: any) => {
+    try {
+      await markAsRead(notification.id);
+      // Optionally: update request status or create an acceptance record in backend later
+      toast({ title: 'Accepted', description: 'You accepted the request. Opening maps...' });
+      const url = extractFirstUrl(notification.message);
+      if (url) window.open(url, '_blank');
+    } catch (e) {
+      console.error('Error accepting request:', e);
+    }
+  };
+
+  const declineRequest = async (notification: any) => {
+    try {
+      await markAsRead(notification.id);
+      toast({ title: 'Declined', description: 'You declined the request.' });
+    } catch (e) {
+      console.error('Error declining request:', e);
+    }
+  };
+
+  const extractFirstUrl = (text: string): string | null => {
+    const match = text.match(/https?:\/\/[^\s)]+/);
+    return match ? match[0] : null;
+  };
+
   const markAllAsRead = async () => {
     if (!user) return;
 
@@ -217,6 +243,16 @@ const NotificationSystem = () => {
                             <p className="text-xs text-muted-foreground mt-2">
                               {format(new Date(notification.created_at), 'MMM dd, HH:mm')}
                             </p>
+                            {notification.type === 'blood_request' && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <Button size="sm" className="h-7 px-2" onClick={() => acceptRequest(notification)}>
+                                  Accept & Navigate
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => declineRequest(notification)}>
+                                  Decline
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

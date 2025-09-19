@@ -159,6 +159,9 @@ const BloodStatus = () => {
 
       if (error) throw error;
 
+      // Broadcast notifications to available donors of the same blood group
+      await notifyEligibleDonors();
+
       toast({
         title: "Urgent Request Created! 🚨",
         description: "Your urgent blood request has been broadcast to nearby donors and hospitals."
@@ -182,6 +185,54 @@ const BloodStatus = () => {
         description: "Failed to create urgent request.",
         variant: "destructive"
       });
+    }
+  };
+
+  const notifyEligibleDonors = async () => {
+    try {
+      // Find available donors by blood group (and optionally by city if provided)
+      let donorsQuery = supabase
+        .from('profiles')
+        .select('user_id, full_name, city')
+        .eq('user_type', 'donor')
+        .eq('is_available', true)
+        .eq('blood_group', selectedBloodGroup)
+        .limit(200);
+
+      if (selectedCity) {
+        donorsQuery = donorsQuery.eq('city', selectedCity);
+      }
+
+      const { data: donors, error: donorsError } = await donorsQuery;
+      if (donorsError) throw donorsError;
+
+      if (!donors || donors.length === 0) return;
+
+      // Prepare a Google Maps link to the hospital address
+      const mapsUrl = urgentRequest.hospital_address
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(urgentRequest.hospital_address)}`
+        : '';
+
+      const title = `Emergency ${selectedBloodGroup} needed`;
+      const message = `Patient: ${urgentRequest.patient_name} • Hospital: ${urgentRequest.hospital_name}. Units: ${urgentRequest.units_needed}. ${urgentRequest.hospital_address ? 'Map: ' + mapsUrl : ''}`;
+
+      const notifications = donors.map((d) => ({
+        user_id: d.user_id,
+        title,
+        message,
+        type: 'blood_request',
+        is_read: false,
+      }));
+
+      // Insert in small batches to avoid payload limits
+      const batchSize = 100;
+      for (let i = 0; i < notifications.length; i += batchSize) {
+        const slice = notifications.slice(i, i + batchSize);
+        const { error: notifErr } = await supabase.from('notifications').insert(slice);
+        if (notifErr) throw notifErr;
+      }
+    } catch (e) {
+      console.error('Error broadcasting notifications:', e);
     }
   };
 

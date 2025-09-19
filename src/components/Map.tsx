@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import L, { Map as LeafletMap, LayerGroup } from 'leaflet';
+import L, { Map as LeafletMap, LayerGroup, Circle as LeafletCircle } from 'leaflet';
 
 // Ensure default marker icons work
 const ensureLeafletIcons = () => {
@@ -58,6 +58,18 @@ interface MapProps {
   userLocation?: [number, number] | null;
   center?: [number, number];
   zoom?: number;
+  // New: active blood requests to render on map
+  requests?: Array<{
+    id: string;
+    patientName: string;
+    bloodGroup: string;
+    urgencyLevel?: string;
+    hospitalName?: string;
+    coordinates: [number, number];
+  }>;
+  // New: optional radius overlay
+  radiusCenter?: [number, number] | null;
+  radiusKm?: number | null;
 }
 
 const Map: React.FC<MapProps> = ({
@@ -67,10 +79,14 @@ const Map: React.FC<MapProps> = ({
   userLocation,
   center = [20.5937, 78.9629],
   zoom = 12,
+  requests = [],
+  radiusCenter = null,
+  radiusKm = null,
 }) => {
   const mapRef = useRef<LeafletMap | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const markersLayerRef = useRef<LayerGroup | null>(null);
+  const radiusCircleRef = useRef<LeafletCircle | null>(null);
 
   useEffect(() => {
     ensureLeafletIcons();
@@ -317,7 +333,63 @@ const Map: React.FC<MapProps> = ({
     });
 
     markersLayerRef.current = layer;
-  }, [donors, emergencyLocations, bloodCamps, userLocation]);
+  
+    // Draw active blood requests (patient/hospital) markers
+    requests.forEach((req) => {
+      const marker = L.marker(req.coordinates, {
+        title: `${req.patientName} - ${req.bloodGroup}`,
+        icon: L.divIcon({
+          className: 'request-icon',
+          html: `
+            <div style="
+              background: linear-gradient(135deg, #ef4444, #b91c1c);
+              border-radius: 50%;
+              width: 28px;
+              height: 28px;
+              border: 3px solid white;
+              box-shadow: 0 4px 12px rgba(239,68,68,0.35), 0 0 0 3px rgba(239,68,68,0.2);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 12px;
+              position: relative;
+              animation: pulse 1.8s infinite;
+            ">
+              🩸
+            </div>
+          `,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        }),
+      });
+      const html = `
+        <div style="min-width:220px">
+          <h3 style="margin:0;font-weight:700;font-size:0.95rem">Blood Request</h3>
+          <p style="margin:6px 0 4px 0;color:#ef4444;font-size:0.8rem;font-weight:600">${req.bloodGroup} ${req.urgencyLevel ? `• ${req.urgencyLevel.toUpperCase()}` : ''}</p>
+          <p style="margin:0 0 4px 0;color:#555;font-size:0.8rem">Patient: ${req.patientName}</p>
+          ${req.hospitalName ? `<p style=\"margin:0 0 4px 0;color:#555;font-size:0.8rem\">Hospital: ${req.hospitalName}</p>` : ''}
+        </div>
+      `;
+      marker.bindPopup(html);
+      marker.addTo(layer);
+    });
+
+    // Draw/Update radius circle if requested
+    if (radiusCircleRef.current) {
+      radiusCircleRef.current.remove();
+      radiusCircleRef.current = null;
+    }
+    if (radiusCenter && radiusKm && mapRef.current) {
+      radiusCircleRef.current = L.circle(radiusCenter, {
+        radius: radiusKm * 1000,
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.08,
+        weight: 1.5,
+      }).addTo(mapRef.current);
+    }
+  }, [donors, emergencyLocations, bloodCamps, userLocation, requests, radiusCenter, radiusKm]);
 
   // Add CSS animations
   useEffect(() => {

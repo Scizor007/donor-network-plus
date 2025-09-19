@@ -51,6 +51,16 @@ interface BloodCamp {
   organizer_name: string;
 }
 
+interface ActiveRequest {
+  id: string;
+  patient_name: string;
+  hospital_name?: string;
+  blood_group: string;
+  urgency_level?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
 const FindDonor = () => {
   const [searchFilters, setSearchFilters] = useState({
     bloodGroup: '',
@@ -65,12 +75,27 @@ const FindDonor = () => {
   const [bloodCamps, setBloodCamps] = useState<BloodCamp[]>([]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [activeRequests, setActiveRequests] = useState<ActiveRequest[]>([]);
+  const [radiusKm, setRadiusKm] = useState<number>(10);
+  const [showRadius, setShowRadius] = useState<boolean>(true);
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
   useEffect(() => {
     fetchRealData();
+    fetchActiveRequests();
+    fetchBloodBanks();
     getUserLocation();
+  }, []);
+
+  useEffect(() => {
+    // subscribe to live inserts/updates on requests
+    const channel = supabase
+      .channel('blood_requests_live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'blood_requests' }, fetchActiveRequests)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'blood_requests' }, fetchActiveRequests)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const getUserLocation = () => {
@@ -104,10 +129,9 @@ const FindDonor = () => {
 
       if (error) {
         console.error('Error fetching donors:', error);
-        return;
       }
 
-      const formattedDonors: Donor[] = data.map(donor => ({
+      const formattedDonors: Donor[] = (data || []).map(donor => ({
         id: donor.id,
         name: donor.full_name,
         bloodGroup: donor.blood_group,
@@ -121,13 +145,88 @@ const FindDonor = () => {
         city: donor.city
       }));
 
-      setAllDonors(formattedDonors);
-      setFilteredDonors(formattedDonors);
+      // Also include donors from profiles so new registrations/updates show immediately
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_type', 'donor')
+        .eq('is_available', true)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+        .limit(500);
+
+      const profileDonors: Donor[] = (profilesData || []).map((donor: any) => ({
+        id: donor.id,
+        name: donor.full_name,
+        bloodGroup: donor.blood_group,
+        location: `${donor.city || 'Unknown'}, ${donor.address || ''}`,
+        distance: '0 km',
+        lastDonation: donor.last_donation_date ? formatLastDonation(donor.last_donation_date) : 'Never donated',
+        verified: donor.is_verified || false,
+        available: donor.is_available || false,
+        phone: donor.phone || '',
+        coordinates: [Number(donor.latitude) || 28.6139, Number(donor.longitude) || 77.2090],
+        city: donor.city
+      }));
+
+      // Merge unique by id (prefer eligible_donors data)
+      const byId = new Map<string, Donor>();
+      profileDonors.forEach(d => byId.set(d.id, d));
+      formattedDonors.forEach(d => byId.set(d.id, d));
+      const merged = Array.from(byId.values());
+
+      setAllDonors(merged);
+      setFilteredDonors(merged);
       if (userLocation) calculateDistances(userLocation);
 
       addTestData();
     } catch (error) {
       console.error('Error fetching data:', error);
+    }
+  };
+
+  const fetchActiveRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('blood_requests')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setActiveRequests(data || []);
+    } catch (e) {
+      console.error('Error fetching active requests:', e);
+    }
+  };
+
+  const fetchBloodBanks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('blood_banks')
+        .select('id, name, address, phone, latitude, longitude, is_active')
+        .eq('is_active', true)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+        .limit(200);
+      if (error) throw error;
+      const banks = (data || []).map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        type: 'blood_bank' as const,
+        address: b.address,
+        phone: b.phone || '',
+        coordinates: [Number(b.latitude), Number(b.longitude)] as [number, number],
+        isOpen24h: true,
+        services: ['Blood Bank'],
+      }));
+      setEmergencyLocations(prev => {
+        // Remove previous fetched banks (keep test hospitals if any)
+        const nonBanks = prev.filter(p => p.type !== 'blood_bank');
+        return [...nonBanks, ...banks];
+      });
+    } catch (e) {
+      console.error('Error fetching blood banks:', e);
     }
   };
 
@@ -211,6 +310,23 @@ const FindDonor = () => {
 
       filtered = filtered.filter(donor => donor.available);
 
+      // Optional radius filtering around user's location
+      if (showRadius && userLocation && radiusKm) {
+        const [lat1, lon1] = userLocation;
+        const R = 6371;
+        filtered = filtered.filter(donor => {
+          const [lat2, lon2] = donor.coordinates;
+          const dLat = (lat2 - lat1) * Math.PI / 180;
+          const dLon = (lon2 - lon1) * Math.PI / 180;
+          const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = R * c;
+          return distance <= radiusKm;
+        });
+      }
+
       setFilteredDonors(filtered);
       setIsSearching(false);
     }, 500);
@@ -221,14 +337,23 @@ const FindDonor = () => {
   }, [searchFilters, allDonors]);
 
   useEffect(() => {
-    const channel = supabase
+    const channel1 = supabase
       .channel('eligible_donors_changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'eligible_donors' }, () => fetchRealData())
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'eligible_donors' }, () => fetchRealData())
       .subscribe();
 
+    const channel2 = supabase
+      .channel('profiles_and_registrations')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' }, fetchRealData)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, fetchRealData)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'donor_registrations' }, fetchRealData)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'donor_registrations' }, fetchRealData)
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel1);
+      supabase.removeChannel(channel2);
     };
   }, []);
 
@@ -396,12 +521,55 @@ const FindDonor = () => {
             <CardContent>
               <Map
                 donors={filteredDonors}
-                emergencyLocations={emergencyLocations}
+                emergencyLocations={(showRadius && userLocation && radiusKm)
+                  ? emergencyLocations.filter(loc => {
+                      const [lat1, lon1] = userLocation as [number, number];
+                      const [lat2, lon2] = loc.coordinates;
+                      const R = 6371;
+                      const dLat = (lat2 - lat1) * Math.PI / 180;
+                      const dLon = (lon2 - lon1) * Math.PI / 180;
+                      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                      const distance = R * c;
+                      return distance <= radiusKm;
+                    })
+                  : emergencyLocations}
                 bloodCamps={bloodCamps}
                 userLocation={userLocation}
                 center={getMapCenter()}
                 zoom={userLocation ? 12 : 5}
+                requests={activeRequests
+                  .filter(r => r.latitude && r.longitude)
+                  .map(r => ({
+                    id: r.id,
+                    patientName: r.patient_name,
+                    bloodGroup: r.blood_group,
+                    urgencyLevel: r.urgency_level || undefined,
+                    hospitalName: r.hospital_name,
+                    coordinates: [Number(r.latitude), Number(r.longitude)] as [number, number],
+                  }))}
+                radiusCenter={showRadius ? (userLocation || null) : null}
+                radiusKm={showRadius ? radiusKm : null}
               />
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <label className="text-sm text-muted-foreground">Radius:</label>
+                <select
+                  className="border rounded px-2 py-1 text-sm"
+                  value={radiusKm}
+                  onChange={(e) => setRadiusKm(parseInt(e.target.value) || 5)}
+                >
+                  {[5,10,15,25,50].map(km => (
+                    <option key={km} value={km}>{km} km</option>
+                  ))}
+                </select>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <input type="checkbox" checked={showRadius} onChange={(e) => setShowRadius(e.target.checked)} />
+                  Show radius
+                </label>
+                <span className="ml-auto text-xs text-muted-foreground">Requests shown on map: {activeRequests.length}</span>
+              </div>
               <div className="mt-4 flex items-center justify-center space-x-6 text-sm text-muted-foreground flex-wrap gap-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">📍</div>

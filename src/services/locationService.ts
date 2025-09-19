@@ -49,10 +49,14 @@ export class LocationService {
 
     static async reverseGeocode(latitude: number, longitude: number): Promise<Partial<LocationData>> {
         try {
-            // Using a free reverse geocoding service
+            // Using a free reverse geocoding service with timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
             const response = await fetch(
-                `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+                `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
+                { signal: controller.signal }
             );
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error('Reverse geocoding failed');
@@ -74,9 +78,13 @@ export class LocationService {
 
     static async getCityCoordinates(city: string): Promise<{ latitude: number; longitude: number }> {
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
             const response = await fetch(
-                `https://api.bigdatacloud.net/data/forward-geocode-client?query=${encodeURIComponent(city)}&localityLanguage=en`
+                `https://api.bigdatacloud.net/data/forward-geocode-client?query=${encodeURIComponent(city)}&localityLanguage=en`,
+                { signal: controller.signal }
             );
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error('Geocoding failed');
