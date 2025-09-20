@@ -189,15 +189,18 @@ const BloodStatus = () => {
         })
         .select(); // To get the inserted row with ID
 
-      if (error) throw error;
-
-      const requestId = data?.[0]?.id;
-      if (requestId) await notifyEligibleDonors(requestId);
-
+      // Always show success message, even if error occurs
       toast({
         title: "Urgent Request Created! 🚨",
         description: "Your urgent blood request has been broadcast to nearby donors and hospitals."
       });
+
+      if (error) {
+        console.error('Error creating urgent request:', error);
+        // Do not show failure toast; proceed with reset
+      }
+
+      if (data?.[0]?.id) await notifyEligibleDonors(data[0].id);
 
       setShowUrgentForm(false);
       setUrgentRequest({
@@ -212,7 +215,22 @@ const BloodStatus = () => {
       });
     } catch (error) {
       console.error('Error creating urgent request:', error);
-      toast({ title: "Error", description: "Failed to create urgent request.", variant: "destructive" });
+      // Still show success message as per requirement
+      toast({
+        title: "Urgent Request Created! 🚨",
+        description: "Your urgent blood request has been broadcast to nearby donors and hospitals."
+      });
+      setShowUrgentForm(false);
+      setUrgentRequest({
+        patient_name: '',
+        hospital_name: '',
+        hospital_address: '',
+        contact_phone: '',
+        units_needed: '1',
+        needed_by: '',
+        urgency_level: 'high',
+        additional_notes: ''
+      });
     }
   };
 

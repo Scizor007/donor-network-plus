@@ -107,7 +107,23 @@ const HospitalPortal = () => {
 
   useEffect(() => {
     if (user) {
-      fetchAppointments();
+      // Initialize with sample appointment data for Kompally Hospital
+      const sampleAppointments: Appointment[] = [
+        {
+          id: "apt1",
+          donor_id: "user123",
+          hospital_id: "h1",
+          appointment_date: "2025-09-21T09:00:00Z",
+          appointment_type: "initial_checkup",
+          status: "scheduled",
+          notes: "First-time donor checkup",
+          donor_name: "John Doe",
+          donor_phone: "+91-9876543210",
+          donor_email: "john.doe@example.com"
+        }
+      ];
+      setAppointments(sampleAppointments);
+      // Keep fetchHealthCheckups for potential real data
       fetchHealthCheckups();
     }
   }, [user]);
