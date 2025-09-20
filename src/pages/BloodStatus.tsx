@@ -12,6 +12,39 @@ import Navigation from '@/components/Navigation';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
+import Map from '@/components/Map'; // Assuming Map.tsx is in components directory
+
+interface BloodBank {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  is_active: boolean;
+}
+
+interface InventoryItem {
+  id: string;
+  blood_group: string;
+  units_available: number;
+  expiry_date: string | null;
+  last_updated: string;
+  blood_banks: BloodBank;
+}
+
+interface Donor {
+  id: string;
+  full_name: string;
+  blood_group: string;
+  city: string;
+  age: number;
+  is_available: boolean;
+  is_verified: boolean;
+  last_donation_date: string | null;
+  user_id: string;
+}
 
 const BloodStatus = () => {
   const { toast } = useToast();
@@ -19,9 +52,9 @@ const BloodStatus = () => {
   const [bloodGroups] = useState(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
   const [selectedBloodGroup, setSelectedBloodGroup] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
-  const [bloodBanks, setBloodBanks] = useState<any[]>([]);
-  const [inventory, setInventory] = useState<any[]>([]);
-  const [nearbyDonors, setNearbyDonors] = useState<any[]>([]);
+  const [bloodBanks, setBloodBanks] = useState<BloodBank[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [nearbyDonors, setNearbyDonors] = useState<Donor[]>([]);
   const [loading, setLoading] = useState(false);
   const [showUrgentForm, setShowUrgentForm] = useState(false);
   const [urgentRequest, setUrgentRequest] = useState({
@@ -46,7 +79,6 @@ const BloodStatus = () => {
         .select('*')
         .eq('is_active', true)
         .order('name');
-
       setBloodBanks(data || []);
     } catch (error) {
       console.error('Error fetching blood banks:', error);
@@ -55,16 +87,12 @@ const BloodStatus = () => {
 
   const checkBloodAvailability = async () => {
     if (!selectedBloodGroup) {
-      toast({
-        title: "Please select a blood group",
-        variant: "destructive"
-      });
+      toast({ title: "Please select a blood group", variant: "destructive" });
       return;
     }
 
     setLoading(true);
     try {
-      // Fetch blood inventory from hospitals/blood banks
       let inventoryQuery = supabase
         .from('blood_inventory')
         .select(`
@@ -87,10 +115,8 @@ const BloodStatus = () => {
       }
 
       const { data: inventoryData } = await inventoryQuery.order('units_available', { ascending: false });
-
       setInventory(inventoryData || []);
 
-      // If no blood available in banks, fetch nearby donors
       if (!inventoryData || inventoryData.length === 0) {
         let donorsQuery = supabase
           .from('profiles')
@@ -108,14 +134,9 @@ const BloodStatus = () => {
       } else {
         setNearbyDonors([]);
       }
-
     } catch (error) {
       console.error('Error checking blood availability:', error);
-      toast({
-        title: "Error",
-        description: "Failed to check blood availability.",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Failed to check blood availability.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -140,8 +161,18 @@ const BloodStatus = () => {
       return;
     }
 
+    const neededByDate = urgentRequest.needed_by ? new Date(urgentRequest.needed_by) : null;
+    if (neededByDate && neededByDate <= new Date()) {
+      toast({
+        title: "Invalid Date",
+        description: "The 'Needed By' date must be in the future.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('blood_requests')
         .insert({
           user_id: user.id,
@@ -151,16 +182,17 @@ const BloodStatus = () => {
           hospital_address: urgentRequest.hospital_address,
           contact_phone: urgentRequest.contact_phone,
           units_needed: parseInt(urgentRequest.units_needed),
-          needed_by: urgentRequest.needed_by || null,
+          needed_by: neededByDate?.toISOString() || null,
           urgency_level: urgentRequest.urgency_level,
           additional_notes: urgentRequest.additional_notes,
           status: 'active'
-        });
+        })
+        .select(); // To get the inserted row with ID
 
       if (error) throw error;
 
-      // Broadcast notifications to available donors of the same blood group
-      await notifyEligibleDonors();
+      const requestId = data?.[0]?.id;
+      if (requestId) await notifyEligibleDonors(requestId);
 
       toast({
         title: "Urgent Request Created! 🚨",
@@ -180,20 +212,15 @@ const BloodStatus = () => {
       });
     } catch (error) {
       console.error('Error creating urgent request:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create urgent request.",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Failed to create urgent request.", variant: "destructive" });
     }
   };
 
-  const notifyEligibleDonors = async () => {
+  const notifyEligibleDonors = async (requestId: string) => {
     try {
-      // Find available donors by blood group (and optionally by city if provided)
       let donorsQuery = supabase
         .from('profiles')
-        .select('user_id, full_name, city')
+        .select('user_id, full_name, city, latitude, longitude')
         .eq('user_type', 'donor')
         .eq('is_available', true)
         .eq('blood_group', selectedBloodGroup)
@@ -208,13 +235,9 @@ const BloodStatus = () => {
 
       if (!donors || donors.length === 0) return;
 
-      // Prepare a Google Maps link to the hospital address
       const mapsUrl = urgentRequest.hospital_address
         ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(urgentRequest.hospital_address)}`
         : '';
-
-      const title = `Emergency ${selectedBloodGroup} needed`;
-      const message = `Patient: ${urgentRequest.patient_name} • Hospital: ${urgentRequest.hospital_name}. Units: ${urgentRequest.units_needed}. ${urgentRequest.hospital_address ? 'Map: ' + mapsUrl : ''}`;
 
       const notifications = donors.map((d) => ({
         user_id: d.user_id,
@@ -223,7 +246,7 @@ const BloodStatus = () => {
         type: 'blood_request',
         is_read: false,
         metadata: {
-          blood_request_id: requestData.id,
+          blood_request_id: requestId,
           patient_name: urgentRequest.patient_name,
           hospital_name: urgentRequest.hospital_name,
           hospital_address: urgentRequest.hospital_address,
@@ -233,13 +256,12 @@ const BloodStatus = () => {
           urgency_level: urgentRequest.urgency_level,
           needed_by: urgentRequest.needed_by,
           additional_notes: urgentRequest.additional_notes,
-          coordinates: [requestData.latitude, requestData.longitude],
+          coordinates: d.latitude && d.longitude ? [d.latitude, d.longitude] as [number, number] : null,
           maps_link: mapsUrl,
           requester_id: user?.id
         }
       }));
 
-      // Insert in small batches to avoid payload limits
       const batchSize = 100;
       for (let i = 0; i < notifications.length; i += batchSize) {
         const slice = notifications.slice(i, i + batchSize);
@@ -251,17 +273,23 @@ const BloodStatus = () => {
     }
   };
 
+  const safeFormat = (date: string | null | undefined, defaultValue = 'N/A') => {
+    if (!date) return defaultValue;
+    try {
+      return format(new Date(date), 'MMM dd, yyyy');
+    } catch {
+      return defaultValue;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-medical-background">
       <Navigation />
-      
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-8">
           <Droplets className="w-12 h-12 text-primary mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-foreground">Request Blood</h1>
-          <p className="text-muted-foreground mt-2">
-            Find blood availability and create urgent requests
-          </p>
+          <p className="text-muted-foreground mt-2">Find blood availability and create urgent requests</p>
         </div>
 
         {/* Search Form */}
@@ -273,7 +301,7 @@ const BloodStatus = () => {
             <div className="grid md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="blood_group">Blood Group *</Label>
-                <Select value={selectedBloodGroup} onValueChange={setSelectedBloodGroup}>
+                <Select value={selectedBloodGroup} onValueChange={setSelectedBloodGroup} disabled={loading}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select blood group" />
                   </SelectTrigger>
@@ -290,20 +318,24 @@ const BloodStatus = () => {
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
                   placeholder="e.g. Mumbai, Delhi"
+                  disabled={loading}
                 />
               </div>
               <div className="flex items-end">
-                <Button 
-                  onClick={checkBloodAvailability} 
-                  className="w-full"
-                  disabled={loading}
-                >
+                <Button onClick={checkBloodAvailability} className="w-full" disabled={loading}>
                   {loading ? 'Checking...' : 'Check Availability'}
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Loading Overlay */}
+        {loading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="text-white text-lg">Loading...</div>
+          </div>
+        )}
 
         {/* Urgent Request Button */}
         <div className="mb-8 text-center">
@@ -312,6 +344,7 @@ const BloodStatus = () => {
             size="lg"
             onClick={() => setShowUrgentForm(true)}
             className="bg-red-600 hover:bg-red-700"
+            disabled={loading}
           >
             <AlertTriangle className="w-5 h-5 mr-2" />
             Create Urgent Blood Request
@@ -333,32 +366,36 @@ const BloodStatus = () => {
                   <Label htmlFor="patient_name">Patient Name *</Label>
                   <Input
                     value={urgentRequest.patient_name}
-                    onChange={(e) => setUrgentRequest({...urgentRequest, patient_name: e.target.value})}
+                    onChange={(e) => setUrgentRequest({ ...urgentRequest, patient_name: e.target.value })}
                     placeholder="Patient full name"
+                    disabled={loading}
                   />
                 </div>
                 <div>
                   <Label htmlFor="hospital_name">Hospital Name *</Label>
                   <Input
                     value={urgentRequest.hospital_name}
-                    onChange={(e) => setUrgentRequest({...urgentRequest, hospital_name: e.target.value})}
+                    onChange={(e) => setUrgentRequest({ ...urgentRequest, hospital_name: e.target.value })}
                     placeholder="Hospital or clinic name"
+                    disabled={loading}
                   />
                 </div>
                 <div>
                   <Label htmlFor="hospital_address">Hospital Address</Label>
                   <Input
                     value={urgentRequest.hospital_address}
-                    onChange={(e) => setUrgentRequest({...urgentRequest, hospital_address: e.target.value})}
+                    onChange={(e) => setUrgentRequest({ ...urgentRequest, hospital_address: e.target.value })}
                     placeholder="Full hospital address"
+                    disabled={loading}
                   />
                 </div>
                 <div>
                   <Label htmlFor="contact_phone">Contact Phone *</Label>
                   <Input
                     value={urgentRequest.contact_phone}
-                    onChange={(e) => setUrgentRequest({...urgentRequest, contact_phone: e.target.value})}
+                    onChange={(e) => setUrgentRequest({ ...urgentRequest, contact_phone: e.target.value })}
                     placeholder="Primary contact number"
+                    disabled={loading}
                   />
                 </div>
                 <div>
@@ -367,7 +404,8 @@ const BloodStatus = () => {
                     type="number"
                     min="1"
                     value={urgentRequest.units_needed}
-                    onChange={(e) => setUrgentRequest({...urgentRequest, units_needed: e.target.value})}
+                    onChange={(e) => setUrgentRequest({ ...urgentRequest, units_needed: e.target.value })}
+                    disabled={loading}
                   />
                 </div>
                 <div>
@@ -375,22 +413,24 @@ const BloodStatus = () => {
                   <Input
                     type="date"
                     value={urgentRequest.needed_by}
-                    onChange={(e) => setUrgentRequest({...urgentRequest, needed_by: e.target.value})}
+                    onChange={(e) => setUrgentRequest({ ...urgentRequest, needed_by: e.target.value })}
+                    disabled={loading}
                   />
                 </div>
                 <div className="md:col-span-2">
                   <Label htmlFor="additional_notes">Additional Notes</Label>
                   <Input
                     value={urgentRequest.additional_notes}
-                    onChange={(e) => setUrgentRequest({...urgentRequest, additional_notes: e.target.value})}
+                    onChange={(e) => setUrgentRequest({ ...urgentRequest, additional_notes: e.target.value })}
                     placeholder="Any additional information..."
+                    disabled={loading}
                   />
                 </div>
                 <div className="md:col-span-2 flex space-x-4">
-                  <Button onClick={createUrgentRequest} className="bg-red-600 hover:bg-red-700">
+                  <Button onClick={createUrgentRequest} className="bg-red-600 hover:bg-red-700" disabled={loading}>
                     Broadcast Urgent Request
                   </Button>
-                  <Button variant="outline" onClick={() => setShowUrgentForm(false)}>
+                  <Button variant="outline" onClick={() => setShowUrgentForm(false)} disabled={loading}>
                     Cancel
                   </Button>
                 </div>
@@ -399,7 +439,7 @@ const BloodStatus = () => {
           </Card>
         )}
 
-        {/* Map Section - Show collected data on map */}
+        {/* Map Section */}
         {(inventory.length > 0 || nearbyDonors.length > 0) && (
           <Card className="mb-8">
             <CardHeader>
@@ -409,15 +449,33 @@ const BloodStatus = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">Interactive map showing blood banks and donors</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {inventory.length} blood banks • {nearbyDonors.length} donors found
-                  </p>
-                </div>
-              </div>
+              <Map
+                donors={nearbyDonors.map(d => ({
+                  id: d.id,
+                  name: d.full_name,
+                  bloodGroup: d.blood_group,
+                  location: d.city,
+                  distance: '0 km',
+                  lastDonation: d.last_donation_date ? safeFormat(d.last_donation_date, 'Never') : 'Never',
+                  verified: d.is_verified,
+                  available: d.is_available,
+                  phone: '', // Placeholder, adjust if phone data exists
+                  coordinates: d.latitude && d.longitude ? [d.latitude, d.longitude] as [number, number] : [0, 0], // Fallback coordinates
+                }))}
+                emergencyLocations={inventory.map(i => ({
+                  id: i.blood_banks.id,
+                  name: i.blood_banks.name,
+                  type: 'blood_bank' as const,
+                  address: i.blood_banks.address,
+                  phone: i.blood_banks.phone,
+                  coordinates: [i.blood_banks.latitude, i.blood_banks.longitude] as [number, number],
+                  isOpen24h: true, // Adjust based on your data
+                }))}
+                bloodCamps={[]}
+                userLocation={null} // Implement geolocation if needed
+                center={[20.5937, 78.9629]} // India centroid
+                zoom={5}
+              />
             </CardContent>
           </Card>
         )}
@@ -425,9 +483,7 @@ const BloodStatus = () => {
         {/* Hospital Blood Banks Results */}
         {inventory.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-green-700">
-              ✅ Blood Available at Hospitals
-            </h2>
+            <h2 className="text-xl font-semibold mb-4 text-green-700">✅ Blood Available at Hospitals</h2>
             <div className="grid gap-4">
               {inventory.map((item) => (
                 <Card key={item.id} className="border-green-200">
@@ -452,20 +508,18 @@ const BloodStatus = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-green-700">
-                          {item.units_available}
-                        </div>
+                        <div className="text-3xl font-bold text-green-700">{item.units_available}</div>
                         <div className="text-sm text-muted-foreground">
                           {item.units_available === 1 ? 'unit' : 'units'} available
                         </div>
                         {item.expiry_date && (
                           <div className="text-xs text-muted-foreground mt-1 flex items-center">
                             <Clock className="w-3 h-3 mr-1" />
-                            Expires: {format(new Date(item.expiry_date), 'MMM dd, yyyy')}
+                            Expires: {safeFormat(item.expiry_date)}
                           </div>
                         )}
                         <div className="text-xs text-muted-foreground mt-1">
-                          Updated: {format(new Date(item.last_updated), 'MMM dd, HH:mm')}
+                          Updated: {safeFormat(item.last_updated, format(new Date(), 'MMM dd, HH:mm'))}
                         </div>
                       </div>
                     </div>
@@ -485,10 +539,7 @@ const BloodStatus = () => {
                 No blood available in hospitals. Showing nearby donors who might be able to help.
               </AlertDescription>
             </Alert>
-            
-            <h2 className="text-xl font-semibold mb-4 text-orange-700">
-              🩸 Available Donors
-            </h2>
+            <h2 className="text-xl font-semibold mb-4 text-orange-700">🩸 Available Donors</h2>
             <div className="grid gap-4">
               {nearbyDonors.map((donor) => (
                 <Card key={donor.id} className="border-orange-200">
@@ -507,7 +558,7 @@ const BloodStatus = () => {
                             </div>
                             {donor.last_donation_date && (
                               <div className="text-xs text-muted-foreground mt-1">
-                                Last donation: {format(new Date(donor.last_donation_date), 'MMM yyyy')}
+                                Last donation: {safeFormat(donor.last_donation_date)}
                               </div>
                             )}
                           </div>
