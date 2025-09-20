@@ -71,6 +71,11 @@ const BookAppointment = () => {
         },
         (error) => {
           console.error('Location access denied:', error);
+          toast({
+            title: "Location Access Denied",
+            description: "Geolocation is disabled. Distance sorting will not be available.",
+            variant: "destructive"
+          });
         }
       );
     }
@@ -81,21 +86,21 @@ const BookAppointment = () => {
     try {
       console.log('Fetching hospitals...');
       const { data, error } = await supabase
-        .from('blood_banks')
+        .from('hospitals') // Changed from 'blood_banks' to 'hospitals'
         .select('*')
         .eq('is_active', true)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null)
+        .is('latitude', null, { negated: true }) // Corrected null check
+        .is('longitude', null, { negated: true }) // Corrected null check
         .order('name');
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('Supabase error:', error.message);
         throw error;
       }
 
       console.log('Fetched hospitals:', data);
       setHospitals(data || []);
-      
+
       if (!data || data.length === 0) {
         toast({
           title: "No Hospitals Found",
@@ -143,10 +148,10 @@ const BookAppointment = () => {
       return { ...hospital, distance };
     })
     .sort((a, b) => {
-      if (a.distance && b.distance) {
+      if (a.distance !== null && b.distance !== null) {
         return a.distance - b.distance;
       }
-      return 0;
+      return 0; // Maintain original order if distance is unavailable
     });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -281,53 +286,53 @@ const BookAppointment = () => {
                   </div>
                 ) : (
                   filteredHospitals.map((hospital) => (
-                  <Card
-                    key={hospital.id}
-                    className={`cursor-pointer transition-all ${
-                      selectedHospital?.id === hospital.id
-                        ? 'ring-2 ring-blue-500 bg-blue-50'
-                        : 'hover:shadow-md'
-                    }`}
-                    onClick={() => setSelectedHospital(hospital)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <h3 className="font-semibold">{hospital.name}</h3>
-                          <div className="flex items-center gap-1 text-sm text-gray-600">
-                            <MapPin className="w-4 h-4" />
-                            {hospital.address}, {hospital.city}
-                          </div>
-                          <div className="flex items-center gap-1 text-sm text-gray-600">
-                            <Phone className="w-4 h-4" />
-                            {hospital.phone}
-                          </div>
-                          {hospital.email && (
+                    <Card
+                      key={hospital.id}
+                      className={`cursor-pointer transition-all ${
+                        selectedHospital?.id === hospital.id
+                          ? 'ring-2 ring-blue-500 bg-blue-50'
+                          : 'hover:shadow-md'
+                      }`}
+                      onClick={() => setSelectedHospital(hospital)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2">
+                            <h3 className="font-semibold">{hospital.name}</h3>
                             <div className="flex items-center gap-1 text-sm text-gray-600">
-                              <Mail className="w-4 h-4" />
-                              {hospital.email}
+                              <MapPin className="w-4 h-4" />
+                              {hospital.address}, {hospital.city}
                             </div>
-                          )}
-                          {hospital.operating_hours && (
                             <div className="flex items-center gap-1 text-sm text-gray-600">
-                              <Clock className="w-4 h-4" />
-                              {hospital.operating_hours}
+                              <Phone className="w-4 h-4" />
+                              {hospital.phone}
                             </div>
-                          )}
+                            {hospital.email && (
+                              <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <Mail className="w-4 h-4" />
+                                {hospital.email}
+                              </div>
+                            )}
+                            {hospital.operating_hours && (
+                              <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <Clock className="w-4 h-4" />
+                                {hospital.operating_hours}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            {hospital.distance !== null && (
+                              <Badge variant="outline" className="mb-2">
+                                {hospital.distance.toFixed(1)} km
+                              </Badge>
+                            )}
+                            {selectedHospital?.id === hospital.id && (
+                              <CheckCircle className="w-5 h-5 text-blue-500" />
+                            )}
+                          </div>
                         </div>
-                        <div className="text-right">
-                          {hospital.distance && (
-                            <Badge variant="outline" className="mb-2">
-                              {hospital.distance.toFixed(1)} km
-                            </Badge>
-                          )}
-                          {selectedHospital?.id === hospital.id && (
-                            <CheckCircle className="w-5 h-5 text-blue-500" />
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
                   ))
                 )}
               </div>
